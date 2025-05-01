@@ -1,0 +1,152 @@
+.schedule-admin-container {
+  padding: 2rem;
+  font-family: "Segoe UI", sans-serif;
+  color: #2e2e2e;
+}
+
+h2 {
+  font-size: 1.6rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.tab-switcher {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.tab-switcher button {
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background-color: #f2f2f2;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tab-switcher button:disabled {
+  background-color: #3e7345;
+  color: white;
+  border-color: #3e7345;
+  cursor: default;
+}
+
+.generate-button {
+  margin-top: 1rem;
+  background-color: #0070f3;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.custom-toast {
+  margin: 1rem auto;
+  max-width: 400px;
+  background-color: #e0f7df;
+  color: #2b5e30;
+  padding: 0.8rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.session-group {
+  background-color: #ffffff;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.session-group h4 {
+  text-transform: uppercase;
+  color: #1f4e2f;
+  font-size: 1.1rem;
+  margin-bottom: 0.8rem;
+}
+
+.session-item-admin {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+  padding: 0.2rem 0.5rem;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+}
+
+.session-item-admin span {
+  font-size: 0.95rem;
+}
+
+.session-item-admin button {
+  background-color: #f56565;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-button-small {
+  background-color: #007f5f;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.modal {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  min-width: 300px;
+}
+
+.modal h4 {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  color: #1f4e2f;
+}
+
+.modal input {
+  width: 100%;
+  margin-bottom: 0.8rem;
+  padding: 0.5rem;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}

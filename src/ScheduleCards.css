@@ -1,0 +1,140 @@
+:root {
+  --bg-light: #ECE5D0;
+  --bg:       #ECE5D1;
+  --primary:  #838A78;
+  --accent:   #848B79;
+  --text-dark:  #000;
+  --text-light: #fff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button:focus {
+  outline: 2px solid var(--primary); /* ili neka druga zelena npr. #6b8e23 */
+  outline-offset: 2px;
+}
+
+
+.day-card {
+  background: var(--accent);
+  border: 2px solid var(--primary);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  padding: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.day-header {
+  width: 100%;
+  background: var(--bg-light);
+  border: none;
+  padding: 14px 18px;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.2s ease;
+  color: var(--text-dark);
+  font-size: 23px;
+}
+.day-header:hover {
+  background-color: #e6ddc5;
+}
+
+.session-card {
+  background: var(--bg-light);
+  border: 2px solid var(--accent);
+  color: var(--text-dark);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease;
+}
+
+.session-card:hover {
+  transform: translateY(-2px);
+}
+
+.session-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 23px;
+  color: var(--primary);
+  border-bottom: #838A78;
+}
+
+.status-tag {
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  display: inline-block;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.status-rezervirano {
+  background-color: var(--bg-light);
+  color: #2e7d32;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.status-cekanje {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.reserve-button,
+.cancel-button {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 2px solid var(--primary);
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reserve-button {
+  background-color: var(--bg-light);
+  color: var(--primary);
+}
+.reserve-button:hover {
+  background-color: var(--primary);
+  color: var(--text-light);
+}
+.reserve-button.full {
+  background-color: #eee;
+  color: #666;
+  border-color: #ccc;
+}
+
+.cancel-button {
+  background-color: #ECE5D0;
+  color: #b71c1c;
+  font-weight: 600;
+  border: 2px solid #f44336;
+  transition: background-color 0.2s ease;
+}
+.cancel-button:hover {
+  background-color: #fbb;
+}
+
+
+.status-rezervirano,
+.cancel-button {
+  animation: fadeIn 0.3s ease-in;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

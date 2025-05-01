@@ -1,0 +1,118 @@
+.status-management-container {
+  padding: 2rem;
+  text-align: center;
+}
+
+.status-management-container h2 {
+  margin-bottom: 2rem;
+  font-size: 2rem;
+  color: #333;
+}
+
+.date-card {
+  background-color: #f9f9f9;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.date-card:hover {
+  background-color: #f0f0f0;
+  transform: translateY(-2px);
+}
+
+.date-header {
+  text-align: center;
+}
+
+.date-text {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.weekday-text {
+  font-size: 1rem;
+  color: #777;
+  margin-top: 0.5rem;
+}
+
+.sessions-list {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.session-item {
+  background-color: #ffffff;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.session-item:hover {
+  background-color: #f5f5f5;
+}
+
+.session-time {
+  font-size: 1.1rem;
+  color: #444;
+  font-weight: 600;
+}
+
+.reservation-list {
+  margin-top: 1rem;
+  text-align: left;
+}
+
+.reservation-item {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  color: #555;
+}
+
+.no-reservations {
+  font-style: italic;
+  color: #999;
+  font-size: 0.95rem;
+}
+
+.time-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.reservation-count {
+  font-size: 0.95rem;
+  color: #777;
+  margin-top: 0.3rem;
+}
+
+.refresh-button-container {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.refresh-button {
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  transition: background-color 0.3s ease;
+}
+
+.refresh-button:hover {
+  background-color: #45a049;
+}
