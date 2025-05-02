@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import ScheduleTable from './ScheduleTable';
 import ScheduleCards from './ScheduleCards';
 
+
 type Props = {
   onReservationMade: () => void;
   refreshKey: number;
