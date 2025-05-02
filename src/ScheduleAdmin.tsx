@@ -44,8 +44,6 @@ export default function ScheduleAdmin() {
   const [isLoading, setIsLoading] = useState(false);
   const [showMissingLabelModal, setShowMissingLabelModal] = useState(false);
   const [startDate, setStartDate] = useState<Date | null>(null);
-const [endDate, setEndDate] = useState<Date | null>(null);
-
 
   const fetchSessions = async () => {
     const source =
@@ -108,30 +106,64 @@ const [endDate, setEndDate] = useState<Date | null>(null);
   };
 
   const generateWeekFromTemplate = async () => {
-    if (!labelInput.trim()) return;
+    if (!startDate) {
+      setShowMissingLabelModal(true);
+      return;
+    }
+
     const existing = await getDocs(collection(db, "draftSchedule"));
     await Promise.all(
       existing.docs.map((d) => deleteDoc(doc(db, "draftSchedule", d.id)))
     );
+
     const templateSnap = await getDocs(collection(db, "defaultSchedule"));
     const templateSessions = templateSnap.docs.map((doc) => doc.data());
+
+    const danOffset: Record<string, number> = {
+      PONEDJELJAK: 0,
+      UTORAK: 1,
+      SRIJEDA: 2,
+      ČETVRTAK: 3,
+      PETAK: 4,
+      SUBOTA: 5,
+      NEDJELJA: 6,
+    };
+
+    const formatDate = (date: Date) => {
+      return date.toLocaleDateString("hr-HR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    };
+
+    const updatedSessions = templateSessions.map((session) => {
+      const dan = session.date; // očekuje se npr. "PONEDJELJAK"
+      const offset = danOffset[dan];
+      const realDate = new Date(startDate);
+      realDate.setDate(realDate.getDate() + offset);
+
+      return {
+        ...session,
+        date: formatDate(realDate), // sada stvarni datum npr. "14.05.2025."
+      };
+    });
+
     await Promise.all(
-      templateSessions.map((session) =>
+      updatedSessions.map((session) =>
         addDoc(collection(db, "draftSchedule"), session)
       )
     );
-    const metaDoc = await getDoc(doc(db, "draftSchedule", "meta"));
-    if (metaDoc.exists()) {
-      const data = metaDoc.data();
-      if (data.label) {
-        await setDoc(doc(db, "sessions", "meta"), { label: data.label });
-      }
-    }
 
-    await setDoc(doc(db, "draftSchedule", "meta"), { label: labelInput });
+    const label = `${formatDate(startDate)} - ${formatDate(
+      new Date(startDate.getTime() + 6 * 86400000)
+    )}`;
+
+    await setDoc(doc(db, "draftSchedule", "meta"), { label });
+    setLabelInput(label);
     await fetchSessions();
 
-    setToastMessage("✅ Raspored povučen iz predloška");
+    setToastMessage("✅ Raspored generiran prema odabranom tjednu");
     setTimeout(() => setToastMessage(null), 3000);
     setView("draft");
   };
@@ -151,6 +183,45 @@ const [endDate, setEndDate] = useState<Date | null>(null);
     setToastMessage("✅ Novi tjedan objavljen");
     setTimeout(() => setToastMessage(null), 3000);
     setView("sessions");
+  };
+
+  const resetDefaultSchedule = async () => {
+    const dani = [
+      "PONEDJELJAK",
+      "UTORAK",
+      "SRIJEDA",
+      "ČETVRTAK",
+      "PETAK",
+      "SUBOTA",
+    ];
+    const termini = [
+      "07:00 - 08:00",
+      "08:00 - 09:00",
+      "09:00 - 10:00",
+      "16:00 - 17:00",
+      "17:00 - 18:00",
+      "18:00 - 19:00",
+    ];
+
+    const existing = await getDocs(collection(db, "defaultSchedule"));
+    await Promise.all(
+      existing.docs.map((d) => deleteDoc(doc(db, "defaultSchedule", d.id)))
+    );
+
+    for (const dan of dani) {
+      for (const time of termini) {
+        await addDoc(collection(db, "defaultSchedule"), {
+          date: dan,
+          time,
+          maxSlots: 5,
+          bookedSlots: 0,
+          active: true,
+        });
+      }
+    }
+
+    setToastMessage("✅ Defaultni raspored je postavljen");
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
   const formatDay = (dateStr: string): string => {
@@ -202,6 +273,14 @@ const [endDate, setEndDate] = useState<Date | null>(null);
         </button>
       </div>
 
+      {view === "template" && (
+        <div style={{ textAlign: "center", marginTop: "1rem" }}>
+          <button className="generate-button" onClick={resetDefaultSchedule}>
+            ♻️ Postavi defaultni raspored
+          </button>
+        </div>
+      )}
+
       {view === "sessions" && currentLabel && (
         <div style={{ textAlign: "center", margin: "1rem 0" }}>
           <div style={{ fontSize: "18px", fontWeight: "600" }}>
@@ -221,27 +300,28 @@ const [endDate, setEndDate] = useState<Date | null>(null);
       {view === "draft" && (
         <>
           <div className="draft-controls-card">
-          <div className="week-datepicker-wrapper">
-  <label style={{ display: "block", marginBottom: "0.5rem" }}>
-    Početak tjedna
-  </label>
-  <DatePicker
-    selected={startDate}
-    onChange={(date) => {
-      setStartDate(date);
-      if (date) {
-        const end = new Date(date);
-        end.setDate(end.getDate() + 6);
-        setEndDate(end);
-        const label = `${date.toLocaleDateString("hr-HR")} - ${end.toLocaleDateString("hr-HR")}`;
-        setLabelInput(label);
-      }
-    }}
-    dateFormat="dd.MM.yyyy"
-    placeholderText="Odaberite datum"
-    className="week-label-input"
-  />
-</div>
+            <div className="week-datepicker-wrapper">
+              <label style={{ display: "block", marginBottom: "0.5rem" }}>
+                Početak tjedna
+              </label>
+              <DatePicker
+                selected={startDate}
+                onChange={(date) => {
+                  setStartDate(date);
+                  if (date) {
+                    const end = new Date(date);
+                    end.setDate(end.getDate() + 6);
+                    const label = `${date.toLocaleDateString(
+                      "hr-HR"
+                    )} - ${end.toLocaleDateString("hr-HR")}`;
+                    setLabelInput(label);
+                  }
+                }}
+                dateFormat="dd.MM.yyyy"
+                placeholderText="Odaberite datum"
+                className="week-label-input"
+              />
+            </div>
 
             <button
               className="generate-button"
@@ -367,7 +447,8 @@ const [endDate, setEndDate] = useState<Date | null>(null);
         <div className="modal-overlay">
           <div className="modal">
             <p style={{ textAlign: "center", marginBottom: "1rem" }}>
-              ⚠️ Prvo unesi datume za tjedan (od - do) za koji želiš generirati raspored.
+              ⚠️ Prvo unesi datume za tjedan (od - do) za koji želiš generirati
+              raspored.
             </p>
             <button
               style={{ display: "block", margin: "0 auto" }}
