@@ -305,22 +305,31 @@ export default function ScheduleAdmin() {
                 Početak tjedna
               </label>
               <DatePicker
-                selected={startDate}
-                onChange={(date) => {
-                  setStartDate(date);
-                  if (date) {
-                    const end = new Date(date);
-                    end.setDate(end.getDate() + 6);
-                    const label = `${date.toLocaleDateString(
-                      "hr-HR"
-                    )} - ${end.toLocaleDateString("hr-HR")}`;
-                    setLabelInput(label);
-                  }
-                }}
-                dateFormat="dd.MM.yyyy"
-                placeholderText="Odaberite datum"
-                className="week-label-input"
-              />
+  selected={startDate}
+  onChange={(selectedDate) => {
+    if (!selectedDate) return;
+
+    const selected = new Date(selectedDate);
+
+    const adjustedStart =
+      selected.getDay() === 0
+        ? new Date(selected.setDate(selected.getDate() - 6))
+        : new Date(selected.setDate(selected.getDate() - (selected.getDay() - 1)));
+
+    setStartDate(adjustedStart);
+
+    const end = new Date(adjustedStart);
+    end.setDate(adjustedStart.getDate() + 6);
+
+    const label = `${adjustedStart.toLocaleDateString("hr-HR")} - ${end.toLocaleDateString("hr-HR")}`;
+    setLabelInput(label);
+  }}
+  dateFormat="dd.MM.yyyy"
+  placeholderText="Odaberite datum"
+  calendarStartDay={1} // 🟢 OVO POSTAVLJA PONEDJELJAK KAO PRVI DAN
+  className="week-label-input"
+/>
+
             </div>
 
             <button
