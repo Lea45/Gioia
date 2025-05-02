@@ -1,17 +1,46 @@
-import { useState } from "react";
-import { FaUser, FaUserShield } from "react-icons/fa";
+import { useState, useEffect } from "react";
+import { FaUser, FaUserShield, FaArrowCircleDown } from "react-icons/fa";
 import Login from "./Login";
 import AdminLogin from "./AdminLogin";
 import "./App.css";
 import logo from "./assets/logo-login.png";
 import ClientDashboard from "./ClientDashboard";
 import "animate.css";
-import AdminDashboard from './AdminDashboard';
+import AdminDashboard from "./AdminDashboard";
 
-type View = "home" | "client" | "clientDashboard" | "admin" | "adminDashboard"; // svi mogući pogledi
+type View = "home" | "client" | "clientDashboard" | "admin" | "adminDashboard";
 
 export default function App() {
   const [view, setView] = useState<View>("home");
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      console.log("💡 PWA install prompt je spreman!");
+    };
+
+    window.addEventListener("beforeinstallprompt", handler);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+    };
+  }, []);
+
+  const handleInstallClick = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === "accepted") {
+          console.log("✅ Korisnik je prihvatio instalaciju");
+        } else {
+          console.log("❌ Korisnik je odbio instalaciju");
+        }
+        setDeferredPrompt(null);
+      });
+    }
+  };
 
   const handleSelectRole = (role: "client" | "admin") => {
     setView(role);
@@ -58,6 +87,14 @@ export default function App() {
             Admin
           </button>
         </div>
+
+        {deferredPrompt && (
+  <button className="install-button" onClick={handleInstallClick}>
+    <FaArrowCircleDown style={{ marginRight: "8px" }} />
+    Instaliraj aplikaciju
+  </button>
+)}
+
       </div>
     </div>
   );
@@ -79,7 +116,8 @@ export default function App() {
         <h2 id="admin-login" className="title">
           Admin prijava
         </h2>
-        <p className="adminlog"
+        <p
+          className="adminlog"
           style={{
             color: "#ccc",
             fontSize: "0.9rem",
@@ -104,4 +142,11 @@ export default function App() {
       {view === "adminDashboard" && <AdminDashboard />}
     </>
   );
+}
+
+declare global {
+  interface BeforeInstallPromptEvent extends Event {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+  }
 }
