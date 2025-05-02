@@ -11,6 +11,8 @@ import {
   getDoc,
 } from "firebase/firestore";
 import spinner from "./gears-spinner.svg";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 type Session = {
   id: string;
@@ -40,6 +42,10 @@ export default function ScheduleAdmin() {
   const [confirmPublish, setConfirmPublish] = useState(false);
   const [confirmPullTemplate, setConfirmPullTemplate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showMissingLabelModal, setShowMissingLabelModal] = useState(false);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+const [endDate, setEndDate] = useState<Date | null>(null);
+
 
   const fetchSessions = async () => {
     const source =
@@ -212,50 +218,69 @@ export default function ScheduleAdmin() {
         </div>
       )}
 
-{view === "draft" && (
-  <>
-    <div className="draft-controls-card">
-      <input
-        type="text"
-        placeholder="Tjedan od 06.05. do 11.05."
-        value={labelInput}
-        onChange={(e) => setLabelInput(e.target.value)}
-        className="week-label-input"
-      />
-      <button
-        className="generate-button"
-        onClick={() => {
-          if (!labelInput.trim()) {
-            setToastMessage("⚠️ Prvo unesi za koji tjedan se povlači raspored");
-            setTimeout(() => setToastMessage(null), 3000);
-            return;
-          }
-          setConfirmPullTemplate(true);
-        }}
-      >
-        📥 Povuci iz predloška
-      </button>
-    </div>
+      {view === "draft" && (
+        <>
+          <div className="draft-controls-card">
+          <div className="week-datepicker-wrapper">
+  <label style={{ display: "block", marginBottom: "0.5rem" }}>
+    Početak tjedna
+  </label>
+  <DatePicker
+    selected={startDate}
+    onChange={(date) => {
+      setStartDate(date);
+      if (date) {
+        const end = new Date(date);
+        end.setDate(end.getDate() + 6);
+        setEndDate(end);
+        const label = `${date.toLocaleDateString("hr-HR")} - ${end.toLocaleDateString("hr-HR")}`;
+        setLabelInput(label);
+      }
+    }}
+    dateFormat="dd.MM.yyyy"
+    placeholderText="Odaberite datum"
+    className="week-label-input"
+  />
+</div>
 
-    {currentLabel && (
-      <div className="active-draft-label">
-        <div>📌 Aktivni tjedan:</div>
-        <div>{currentLabel}</div>
-      </div>
-    )}
+            <button
+              className="generate-button"
+              onClick={() => {
+                if (!labelInput.trim()) {
+                  setShowMissingLabelModal(true);
+                  return;
+                }
 
-    <div style={{ maxWidth: "400px", margin: "1rem auto", textAlign: "center" }}>
-      <button
-        className="publish-button"
-        onClick={() => setConfirmPublish(true)}
-      >
-        ✅ Objavi raspored
-      </button>
-    </div>
-  </>
-)}
+                setConfirmPullTemplate(true);
+              }}
+            >
+              📥 Povuci iz predloška
+            </button>
+          </div>
 
+          {currentLabel && (
+            <div className="active-draft-label">
+              <div>📌 Aktivni tjedan:</div>
+              <div>{currentLabel}</div>
+            </div>
+          )}
 
+          <div
+            style={{
+              maxWidth: "400px",
+              margin: "1rem auto",
+              textAlign: "center",
+            }}
+          >
+            <button
+              className="publish-button"
+              onClick={() => setConfirmPublish(true)}
+            >
+              ✅ Objavi raspored
+            </button>
+          </div>
+        </>
+      )}
 
       {toastMessage && <div className="custom-toast">{toastMessage}</div>}
 
@@ -334,6 +359,22 @@ export default function ScheduleAdmin() {
               Da, objavi
             </button>
             <button onClick={() => setConfirmPublish(false)}>Odustani</button>
+          </div>
+        </div>
+      )}
+
+      {showMissingLabelModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <p style={{ textAlign: "center", marginBottom: "1rem" }}>
+              ⚠️ Prvo unesi datume za tjedan (od - do) za koji želiš generirati raspored.
+            </p>
+            <button
+              style={{ display: "block", margin: "0 auto" }}
+              onClick={() => setShowMissingLabelModal(false)}
+            >
+              U redu
+            </button>
           </div>
         </div>
       )}
