@@ -212,45 +212,50 @@ export default function ScheduleAdmin() {
         </div>
       )}
 
-      {view === "draft" && (
-        <div style={{ margin: "1rem 0" }}>
-          <input
-            type="text"
-            placeholder="Tjedan od 06.05. do 11.05."
-            value={labelInput}
-            onChange={(e) => setLabelInput(e.target.value)}
-            style={{ padding: "0.5rem", marginRight: "0.5rem" }}
-          />
-          <button
-            className="generate-button"
-            onClick={() => {
-              if (!labelInput.trim()) {
-                setToastMessage(
-                  "⚠️ Prvo unesi za koji tjedan se povlači raspored"
-                );
-                setTimeout(() => setToastMessage(null), 3000);
-                return;
-              }
-              setConfirmPullTemplate(true);
-            }}
-          >
-            📥 Povuci iz predloška
-          </button>
-          {currentLabel && (
-            <h3 style={{ marginTop: "1rem", color: "#c0392b" }}>
-              📌 Aktivni tjedan: {currentLabel}
-            </h3>
-          )}
+{view === "draft" && (
+  <>
+    <div className="draft-controls-card">
+      <input
+        type="text"
+        placeholder="Tjedan od 06.05. do 11.05."
+        value={labelInput}
+        onChange={(e) => setLabelInput(e.target.value)}
+        className="week-label-input"
+      />
+      <button
+        className="generate-button"
+        onClick={() => {
+          if (!labelInput.trim()) {
+            setToastMessage("⚠️ Prvo unesi za koji tjedan se povlači raspored");
+            setTimeout(() => setToastMessage(null), 3000);
+            return;
+          }
+          setConfirmPullTemplate(true);
+        }}
+      >
+        📥 Povuci iz predloška
+      </button>
+    </div>
 
-          <button
-            className="generate-button"
-            onClick={() => setConfirmPublish(true)}
-            style={{ backgroundColor: "#28a745", marginTop: "1rem" }}
-          >
-            ✅ Objavi raspored
-          </button>
-        </div>
-      )}
+    {currentLabel && (
+      <div className="active-draft-label">
+        <div>📌 Aktivni tjedan:</div>
+        <div>{currentLabel}</div>
+      </div>
+    )}
+
+    <div style={{ maxWidth: "400px", margin: "1rem auto", textAlign: "center" }}>
+      <button
+        className="publish-button"
+        onClick={() => setConfirmPublish(true)}
+      >
+        ✅ Objavi raspored
+      </button>
+    </div>
+  </>
+)}
+
+
 
       {toastMessage && <div className="custom-toast">{toastMessage}</div>}
 

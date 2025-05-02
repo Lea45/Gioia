@@ -169,3 +169,64 @@ h2 {
   height: 100px;
 }
 
+.draft-controls-card {
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  max-width: 400px;
+  margin: 1.5rem auto;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.week-label-input {
+  padding: 0.6rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #ccc;
+  width: 100%;
+  font-size: 1rem;
+}
+
+.generate-button,
+.publish-button {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+}
+
+.schedule-admin-generate-button {
+  background-color: #007bff;
+  color: white;
+  margin-top: 10px;
+}
+
+.publish-button {
+  background-color: #28a745;
+  color: white;
+}
+
+.active-draft-label {
+  color: #c0392b;
+  font-weight: 500;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  line-height: 1.4;
+}
+
+.schedule-admin-draft-card {
+  background-color: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  max-width: 100%;
+  margin: 1.5rem auto;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
