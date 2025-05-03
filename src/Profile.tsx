@@ -128,6 +128,30 @@ export default function Profile() {
       <button onClick={handleLogout} style={logoutButtonStyle}>
         <FaSignOutAlt style={{ marginRight: '6px' }} />Odjavi se
       </button>
+
+      {/* Prošli termini */}
+{(() => {
+  const raw = localStorage.getItem("pastBookings");
+  const past = raw ? (JSON.parse(raw) as { date: string; time: string; status: string }[]) : [];
+
+  return past.length > 0 ? (
+    <div style={{ marginTop: "32px" }}>
+      <h3 style={{ marginBottom: "12px", textAlign: "center" }}>📁 Prošli termini</h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        {past.map((b, index) => (
+          <div key={index} style={cardStyle}>
+            <div><strong>{b.date}</strong></div>
+            <div>{b.time}</div>
+            <div style={{ fontSize: "0.9rem", color: "#555" }}>
+              {b.status === "rezervirano" ? "✅ Prisustvovali" : "🕐 Čekanje"}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+})()}
+
     </div>
   );
 }
