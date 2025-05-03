@@ -12,6 +12,7 @@ type Reservation = {
   sessionId: string;
   date: string;
   time: string;
+  status: "rezervirano" | "cekanje";
 };
 
 type Session = {
@@ -56,6 +57,7 @@ export default function StatusManagement() {
       sessionId: doc.data().sessionId,
       date: doc.data().date,
       time: doc.data().time,
+      status: doc.data().status,
     }));
     setReservations(reservationList);
   };
@@ -172,19 +174,44 @@ export default function StatusManagement() {
                             </div>
 
                             {expandedSessionId === session.id && (
-                              <div className="reservation-list">
-                                {reservationCount > 0 ? (
-                                  relatedReservations.map((res) => (
+                            <div className="reservation-list">
+                            {reservationCount > 0 ? (
+                              <>
+                                <div style={{ fontWeight: "bold", marginBottom: "6px" }}>
+                                   Rezervirani:
+                                </div>
+                                {relatedReservations
+                                  .filter((res) => (res.status ?? "rezervirano") === "rezervirano")
+                                  .map((res) => (
                                     <div key={res.id} className="reservation-item">
-                                      {res.name ? res.name : res.phone}
+                                      {res.name ? res.name : res.phone}{" "}
+                                    
                                     </div>
-                                  ))
-                                ) : (
-                                  <div className="no-reservations">
-                                    Nema rezervacija
-                                  </div>
+                                  ))}
+                          
+                                {relatedReservations.some((res) => (res.status ?? "rezervirano") === "cekanje") && (
+                                  <>
+                                    <hr style={{ margin: "12px 0", border: "none", borderTop: "1px solid #ccc" }} />
+                                    <div style={{ fontWeight: "bold", marginBottom: "6px" }}>
+                                       Lista čekanja:
+                                    </div>
+                                    {relatedReservations
+                                      .filter((res) => (res.status ?? "rezervirano") === "cekanje")
+                                      .map((res) => (
+                                        <div key={res.id} className="reservation-item">
+                                          {res.name ? res.name : res.phone}{" "}
+                                          
+                                        </div>
+                                      ))}
+                                  </>
                                 )}
-                              </div>
+                              </>
+                            ) : (
+                              <div className="no-reservations">Nema rezervacija</div>
+                            )}
+                          </div>
+                          
+                          
                             )}
                           </div>
                         );
