@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   collection,
   query,
@@ -6,29 +6,38 @@ import {
   getDocs,
   doc,
   updateDoc,
-} from 'firebase/firestore';
-import { db } from './firebase';
-import { FaPhone, FaUser, FaEdit, FaSignOutAlt } from 'react-icons/fa';
+} from "firebase/firestore";
+import { db } from "./firebase";
+import {
+  FaPhone,
+  FaUser,
+  FaEdit,
+  FaSignOutAlt,
+  FaCheckCircle,
+  FaClock,
+  FaFolderOpen,
+} from "react-icons/fa";
+import "./Profile.css";
 
 export default function Profile() {
-  const storedPhone = localStorage.getItem('phone');
-  const [phone, setPhone] = useState(storedPhone || '');
-  const [name, setName] = useState('');
-  const [docId, setDocId] = useState('');
+  const storedPhone = localStorage.getItem("phone");
+  const [phone, setPhone] = useState(storedPhone || "");
+  const [name, setName] = useState("");
+  const [docId, setDocId] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     const fetchUser = async () => {
       if (!phone) return;
 
-      const q = query(collection(db, 'users'), where('phone', '==', phone));
+      const q = query(collection(db, "users"), where("phone", "==", phone));
       const snap = await getDocs(q);
 
       if (!snap.empty) {
         const userDoc = snap.docs[0];
         const userData = userDoc.data();
-        setName(userData.name || '');
+        setName(userData.name || "");
         setDocId(userDoc.id);
       }
     };
@@ -41,68 +50,38 @@ export default function Profile() {
     setName(newName);
 
     if (docId) {
-      const userRef = doc(db, 'users', docId);
+      const userRef = doc(db, "users", docId);
       await updateDoc(userRef, { name: newName });
-      setMessage('✅ Podaci su spremljeni');
+      setMessage("✅ Podaci su spremljeni");
     }
   };
 
   const handlePhoneChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPhone = e.target.value;
     setPhone(newPhone);
-    localStorage.setItem('phone', newPhone);
+    localStorage.setItem("phone", newPhone);
 
     if (docId) {
-      const userRef = doc(db, 'users', docId);
+      const userRef = doc(db, "users", docId);
       await updateDoc(userRef, { phone: newPhone });
-      setMessage('✅ Podaci su spremljeni');
+      setMessage("✅ Podaci su spremljeni");
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('phone');
+    localStorage.removeItem("phone");
     window.location.reload();
   };
 
   return (
-    <div style={profileStyle}>
-      <div style={{ textAlign: 'center' }}>
-        <h2
-          style={{
-            backgroundColor: '#ECE5D1',
-            display: 'inline-block',
-            borderRadius: '12px',
-            color: 'black',
-            fontWeight: 700,
-            padding: '8px 16px',
-            marginBottom: '32px'
-          }}
-        >
-          Moj profil
-        </h2>
+    <div className="profile">
+      <div className="profile-header">
+        <h2 className="profile-title">Moj profil</h2>
       </div>
 
-      <div style={cardStyle}>
-        <label style={labelStyle}>
-          <FaPhone style={{ marginRight: '8px' }} />
-          Broj mobitela:
-        </label>
-        {isEditing ? (
-          <input
-            type="text"
-            value={phone}
-            onChange={handlePhoneChange}
-            style={inputStyle}
-            placeholder="Unesi broj mobitela"
-          />
-        ) : (
-          <div>{phone}</div>
-        )}
-      </div>
-
-      <div style={cardStyle}>
-        <label style={labelStyle}>
-          <FaUser style={{ marginRight: '8px' }} />
+      <div className="profile-card">
+        <label className="profile-label">
+          <FaUser style={{ marginRight: "8px" }} />
           Ime i prezime:
         </label>
         {isEditing ? (
@@ -110,110 +89,90 @@ export default function Profile() {
             type="text"
             value={name}
             onChange={handleNameChange}
-            style={inputStyle}
+            className="profile-input"
             placeholder="Unesi ime i prezime"
           />
         ) : (
-          <div>{name || '—'}</div>
+          <div>{name || "—"}</div>
         )}
       </div>
 
-      <button onClick={() => setIsEditing((prev) => !prev)} style={editButtonStyle}>
-        <FaEdit style={{ marginRight: '6px' }} />
-        {isEditing ? 'Završi uređivanje' : 'Promijeni podatke'}
-      </button>
+      <div className="profile-card">
+        <label className="profile-label">
+          <FaPhone style={{ marginRight: "8px" }} />
+          Broj mobitela:
+        </label>
+        {isEditing ? (
+          <input
+            type="text"
+            value={phone}
+            onChange={handlePhoneChange}
+            className="profile-input"
+            placeholder="Unesi broj mobitela"
+          />
+        ) : (
+          <div>{phone}</div>
+        )}
+      </div>
 
-      {message && <div style={messageStyle}>{message}</div>}
+      <div className="profile-buttons-row">
+        <button
+          onClick={() => setIsEditing((prev) => !prev)}
+          className="profile-edit-button"
+        >
+          <FaEdit style={{ marginRight: "6px" }} />
+          {isEditing ? "Završi" : "Ažuriraj"}
+        </button>
 
-      <button onClick={handleLogout} style={logoutButtonStyle}>
-        <FaSignOutAlt style={{ marginRight: '6px' }} />Odjavi se
-      </button>
+        {message && <div className="profile-message">{message}</div>}
+
+        <button onClick={handleLogout} className="profile-logout-button">
+          <FaSignOutAlt style={{ marginRight: "6px" }} />
+          Odjava
+        </button>
+      </div>
 
       {/* Prošli termini */}
-{(() => {
-  const raw = localStorage.getItem("pastBookings");
-  const past = raw ? (JSON.parse(raw) as { date: string; time: string; status: string }[]) : [];
+      {(() => {
+        const raw = localStorage.getItem("pastBookings");
+        const past = raw
+          ? (JSON.parse(raw) as {
+              date: string;
+              time: string;
+              status: string;
+            }[])
+          : [];
 
-  return past.length > 0 ? (
-    <div style={{ marginTop: "32px" }}>
-      <h3 style={{ marginBottom: "12px", textAlign: "center" }}>📁 Prošli termini</h3>
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-        {past.map((b, index) => (
-          <div key={index} style={cardStyle}>
-            <div><strong>{b.date}</strong></div>
-            <div>{b.time}</div>
-            <div style={{ fontSize: "0.9rem", color: "#555" }}>
-              {b.status === "rezervirano" ? "✅ Prisustvovali" : "🕐 Čekanje"}
+        return past.length > 0 ? (
+          <div className="profile-past-section">
+            <h3 className="profile-past-title">
+              <FaFolderOpen className="profile-status-icon2" /> Prošli termini
+            </h3>{" "}
+            <div className="profile-past-list">
+              {past.map((b, index) => (
+                <div key={index} className="profile-card">
+                  <div>
+                    <strong>{b.date}</strong>
+                  </div>
+                  <div>{b.time}</div>
+                  <div className="profile-past-status">
+                    {b.status === "rezervirano" ? (
+                      <>
+                        <FaCheckCircle className="profile-status-icon" />{" "}
+                        Prisustvovali
+                      </>
+                    ) : (
+                      <>
+                        <FaClock className="profile-status-icon" /> Čekanje
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
-    </div>
-  ) : null;
-})()}
-
+        ) : null;
+      })()}
     </div>
   );
 }
-
-const profileStyle = {
-  padding: '20px',
-  maxWidth: '400px',
-  margin: '0 auto',
-};
-
-const cardStyle = {
-  backgroundColor: '#F3EEE1',
-  padding: '12px 16px',
-  borderRadius: '12px',
-  border: '1px solid #ddd',
-  marginBottom: '16px',
-};
-
-const labelStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  fontWeight: 'bold',
-  marginBottom: '6px',
-};
-
-const inputStyle = {
-  width: '100%',
-  padding: '10px',
-  borderRadius: '8px',
-  border: '1px solid #ccc',
-  fontSize: '1rem',
-};
-
-const editButtonStyle = {
-  padding: '10px 16px',
-  backgroundColor: '#838A78',
-  color: '#fff',
-  border: 'none',
-  borderRadius: '8px',
-  fontWeight: 'bold',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  marginBottom: '12px',
-  transition: 'background-color 0.3s',
-};
-
-const logoutButtonStyle = {
-  padding: '10px 16px',
-  backgroundColor: '#e74c3c',
-  color: '#fff',
-  border: 'none',
-  borderRadius: '8px',
-  fontWeight: 'bold',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  transition: 'background-color 0.3s',
-};
-
-const messageStyle = {
-  color: 'green',
-  fontSize: '0.9rem',
-  marginBottom: '10px',
-};

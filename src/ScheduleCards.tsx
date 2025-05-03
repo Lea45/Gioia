@@ -1,5 +1,3 @@
-// ScheduleCards.tsx — ažurirano za prikaz dana u tjednu i admin labela
-
 import { useEffect, useState } from "react";
 import AnimatedCollapse from "./AnimatedCollapse";
 import { db } from "./firebase";
@@ -22,7 +20,6 @@ import {
   FaCalendarAlt,
 } from "react-icons/fa";
 import spinner from "./gears-spinner.svg";
-
 
 type Session = {
   id: string;
@@ -313,12 +310,23 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                     <div className="session-info">
                       <span className="session-time">
                         <FaClock
-                          style={{ marginRight: "6px", fontSize: "22px" }}
+                          style={{
+                            marginRight: "6px",
+                            fontSize: "20px",
+                            position: "relative",
+                            top: "3px",
+                          }}
                         />
                         <strong>{s.time}</strong>
                       </span>
                       <span>
-                        <FaUserFriends style={{ marginRight: "6px" }} />
+                        <FaUserFriends
+                          style={{
+                            marginRight: "6px",
+                            position: "relative",
+                            top: "3px",
+                          }}
+                        />
                         {s.bookedSlots}/{s.maxSlots}
                       </span>
                     </div>
@@ -326,7 +334,13 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                     {reserved ? (
                       <>
                         <div className="status-tag status-rezervirano">
-                          <FaCheckCircle style={{ marginRight: "6px" }} />
+                          <FaCheckCircle
+                            style={{
+                              marginRight: "6px",
+                              position: "relative",
+                              top: "3px",
+                            }}
+                          />
                           Rezervirano
                         </div>
                         {(() => {
@@ -366,10 +380,14 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                                 cursor: canCancel ? "pointer" : "not-allowed",
                               }}
                             >
-                              <FaTimesCircle style={{ marginRight: "6px" }} />
-                              {canCancel
-                                ? "Otkazivanje"
-                                : "Prekasno za otkazivanje (danas unutar 3h)"}
+                              <FaTimesCircle
+                                style={{
+                                  marginRight: "6px",
+                                  position: "relative",
+                                  top: "3px",
+                                }}
+                              />
+                              {canCancel ? "Otkaži" : "Prekasno za otkazivanje"}
                             </button>
                           );
                         })()}

@@ -29,6 +29,11 @@
   gap: 0.5rem;
 }
 
+.tab-button svg {
+  position: relative;
+  top: -2px;
+}
+
 .tab-button:hover {
   background-color: var(--accent);
   color: var(--text-light);

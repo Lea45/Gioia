@@ -12,6 +12,7 @@ import { db } from "./firebase";
 import ConfirmPopup from "./ConfirmPopup";
 import "./MyBookings.css";
 import spinner from "./gears-spinner.svg";
+import { FaCheckCircle, FaClock, FaTimesCircle } from "react-icons/fa";
 
 type Booking = {
   id: string;
@@ -203,6 +204,7 @@ const MyBookings = ({
             }
 
             return (
+              
               <div className="booking-card" key={booking.id}>
                 <div className="booking-info">
                   <span>{booking.date}</span>
@@ -210,11 +212,30 @@ const MyBookings = ({
                 </div>
                 <div className="booking-status">
                   {booking.status === "rezervirano" ? (
-                    <span className="status-tag reserved">✅ Rezervirano</span>
+                    <span className="status-tag reserved">
+                      <FaCheckCircle
+                        style={{
+                          marginRight: "6px",
+                          position: "relative",
+                          top: "3px",
+                        }}
+                      />
+                      Rezervirano
+                    </span>
                   ) : (
-                    <span className="status-tag waiting">🕐 Čekanje</span>
+                    <span className="status-tag waiting">
+                      <FaClock
+                        style={{
+                          marginRight: "6px",
+                          position: "relative",
+                          top: "3px",
+                        }}
+                      />
+                      Čekanje
+                    </span>
                   )}
                 </div>
+
                 <button
                   className="cancel-button"
                   onClick={() =>
@@ -226,12 +247,18 @@ const MyBookings = ({
                     cursor: canCancel ? "pointer" : "not-allowed",
                   }}
                 >
-                  ❌{" "}
+                  <FaTimesCircle
+                    style={{
+                      marginRight: "6px",
+                      position: "relative",
+                      top: "3px",
+                    }}
+                  />
                   {canCancel
-                    ? "Otkazivanje"
+                    ? "Otkaži"
                     : isPast
                     ? "Termin je prošao"
-                    : "Prekasno za otkazivanje (danas unutar 3h)"}
+                    : "Prekasno za otkazivanje"}
                 </button>
               </div>
             );

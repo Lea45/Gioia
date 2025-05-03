@@ -89,14 +89,14 @@ export default function ClientDashboard() {
           }`}
           onClick={() => setActiveTab("moji-termini")}
         >
-          <FaCheckCircle /> Moji termini
+          <FaCheckCircle /> Termini
         </button>
 
         <button
           className={`tab-button ${activeTab === "profil" ? "active" : ""}`}
           onClick={() => setActiveTab("profil")}
         >
-          <FaUser /> Moj profil
+          <FaUser /> Profil
         </button>
       </div>
 
