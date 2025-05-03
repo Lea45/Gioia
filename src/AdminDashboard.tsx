@@ -14,8 +14,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="admin-dashboard">
-      <h1>Dobrodošli u Admin Panel!</h1>
-      <p>Ovdje možeš upravljati terminima, korisnicima i statistikama.</p>
 
       <div className="tab-buttons">
         <button className={`tab-button ${activeTab === 'calendar' ? 'active' : ''}`} onClick={() => setActiveTab('calendar')}>

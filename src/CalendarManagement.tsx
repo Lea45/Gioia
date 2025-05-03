@@ -1,5 +1,4 @@
 import ScheduleAdmin from "./ScheduleAdmin";
-import "./CalendarManagement.css";
 
 export default function CalendarManagement() {
   return (

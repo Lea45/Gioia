@@ -13,6 +13,7 @@ import {
 import spinner from "./gears-spinner.svg";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { FaCalendarAlt, FaEdit, FaRegListAlt,FaRecycle, FaDownload, FaThumbtack, FaCheckCircle, FaPlusCircle} from "react-icons/fa";
 
 type Session = {
   id: string;
@@ -255,40 +256,29 @@ export default function ScheduleAdmin() {
         </div>
       )}
 
-      <div className="tab-switcher">
-        <button
-          onClick={() => setView("sessions")}
-          disabled={view === "sessions"}
-        >
-          📅 Tjedni raspored
-        </button>
-        <button onClick={() => setView("draft")} disabled={view === "draft"}>
-          ✏️ Uredi tjedan
-        </button>
-        <button
-          onClick={() => setView("template")}
-          disabled={view === "template"}
-        >
-          🟩 DEFAULTNI RASPORED
-        </button>
-      </div>
+<div className="tab-switcher">
+  <button onClick={() => setView("sessions")} disabled={view === "sessions"}>
+    <FaCalendarAlt style={{ marginRight: "0.4rem" }} />
+    Tjedni raspored
+  </button>
+  <button onClick={() => setView("draft")} disabled={view === "draft"}>
+    <FaEdit style={{ marginRight: "0.4rem" }} />
+    Uredi tjedan
+  </button>
+  <button onClick={() => setView("template")} disabled={view === "template"}>
+    <FaRegListAlt style={{ marginRight: "0.4rem" }} />
+    Defaultni raspored
+  </button>
+</div>
 
-      {view === "template" && (
-        <div style={{ textAlign: "center", marginTop: "1rem" }}>
-          <button className="generate-button" onClick={resetDefaultSchedule}>
-            ♻️ Postavi defaultni raspored
-          </button>
-        </div>
-      )}
 
+      
       {view === "sessions" && currentLabel && (
         <div style={{ textAlign: "center", margin: "1rem 0" }}>
-          <div style={{ fontSize: "18px", fontWeight: "600" }}>
-            <span role="img" aria-label="calendar">
-              🗓️
-            </span>{" "}
-            Raspored
-          </div>
+          <div style={{ fontSize: "18px", fontWeight: "600", display: "flex", justifyContent: "center", alignItems: "center" }}>
+      <FaCalendarAlt style={{ marginRight: "0.4rem" }} />
+      Raspored
+    </div>
           <div
             style={{ fontSize: "16px", fontWeight: "500", marginTop: "0.3rem" }}
           >
@@ -333,23 +323,29 @@ export default function ScheduleAdmin() {
             </div>
 
             <button
-              className="generate-button"
-              onClick={() => {
-                if (!labelInput.trim()) {
-                  setShowMissingLabelModal(true);
-                  return;
-                }
+  className="generate-button"
+  onClick={() => {
+    if (!labelInput.trim()) {
+      setShowMissingLabelModal(true);
+      return;
+    }
 
-                setConfirmPullTemplate(true);
-              }}
-            >
-              📥 Povuci iz predloška
-            </button>
+    setConfirmPullTemplate(true);
+  }}
+>
+  <FaDownload style={{ marginRight: "0.4rem" }} />
+  Povuci iz predloška
+</button>
+
           </div>
 
           {currentLabel && (
             <div className="active-draft-label">
-              <div>📌 Aktivni tjedan:</div>
+              <div>
+  <FaThumbtack style={{ marginRight: "0.4rem" }} />
+  Aktivni tjedan:
+</div>
+
               <div>{currentLabel}</div>
             </div>
           )}
@@ -362,11 +358,13 @@ export default function ScheduleAdmin() {
             }}
           >
             <button
-              className="publish-button"
-              onClick={() => setConfirmPublish(true)}
-            >
-              ✅ Objavi raspored
-            </button>
+  className="publish-button"
+  onClick={() => setConfirmPublish(true)}
+>
+  <FaCheckCircle style={{ marginRight: "0.4rem" }} />
+  Objavi raspored
+</button>
+
           </div>
         </>
       )}
@@ -510,12 +508,14 @@ export default function ScheduleAdmin() {
                 view === "sessions") && (
                 <>
                   <button
-                    className="add-button-small"
-                    onClick={() => setShowModal(date)}
-                    style={{ marginTop: "0.5rem" }}
-                  >
-                    ➕ Dodaj termin
-                  </button>
+  className="add-button-small"
+  onClick={() => setShowModal(date)}
+  style={{ marginTop: "0.5rem" }}
+>
+  <FaPlusCircle style={{ marginRight: "0.4rem" }} />
+  Dodaj termin
+</button>
+
                   {showModal === date && (
                     <div className="modal-overlay">
                       <div className="modal">

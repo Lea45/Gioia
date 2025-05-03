@@ -1,26 +1,57 @@
 .status-management-container {
-  padding: 2rem;
-  text-align: center;
+  padding: 1rem 2rem;
+  max-width: 800px;
+  margin: 2rem auto;
+  background-color: #ECE5D1;
+  border-radius: 12px;
+  border: 2px solid #848B79;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  font-family: 'Special Elite', serif;
 }
 
 .status-management-container h2 {
+  text-align: center;
   margin-bottom: 2rem;
+  color: #848B79;
   font-size: 2rem;
-  color: #333;
+  font-family: 'Dancing Script', cursive;
+}
+
+.refresh-button-container {
+  text-align: center;
+  margin: 1rem 0 2rem 0;
+}
+
+.refresh-button {
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  background-color: #848B79;
+  color: #ECE5D1;
+  border: none;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.refresh-button:hover {
+  background-color: #6B8E23;
+  transform: scale(1.05);
 }
 
 .date-card {
-  background-color: #f9f9f9;
+  background-color: #ECE5D1;
   margin-bottom: 1.5rem;
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border: 1px solid #848B79;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: background-color 0.3s, transform 0.2s;
 }
 
 .date-card:hover {
-  background-color: #f0f0f0;
+  background-color: #d6cfbc;
   transform: translateY(-2px);
 }
 
@@ -31,12 +62,12 @@
 .date-text {
   font-size: 1.3rem;
   font-weight: bold;
-  color: #333;
+  color: #848B79;
 }
 
 .weekday-text {
   font-size: 1rem;
-  color: #777;
+  color: #555;
   margin-top: 0.5rem;
 }
 
@@ -48,23 +79,35 @@
 }
 
 .session-item {
-  background-color: #ffffff;
-  padding: 1rem;
+  background-color: #ECE5D1;
+  padding: 0.8rem 1rem;
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #848B79;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s, transform 0.2s;
 }
 
 .session-item:hover {
-  background-color: #f5f5f5;
+  background-color: #d6cfbc;
+  transform: scale(1.02);
 }
 
 .session-time {
   font-size: 1.1rem;
-  color: #444;
+  color: #848B79;
   font-weight: 600;
+}
+
+.time-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.reservation-count {
+  font-size: 0.95rem;
+  color: #555;
+  margin-top: 0.3rem;
 }
 
 .reservation-list {
@@ -82,37 +125,4 @@
   font-style: italic;
   color: #999;
   font-size: 0.95rem;
-}
-
-.time-text {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.reservation-count {
-  font-size: 0.95rem;
-  color: #777;
-  margin-top: 0.3rem;
-}
-
-.refresh-button-container {
-  text-align: center;
-  margin: 1rem 0;
-}
-
-.refresh-button {
-  padding: 10px 20px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 8px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  transition: background-color 0.3s ease;
-}
-
-.refresh-button:hover {
-  background-color: #45a049;
 }

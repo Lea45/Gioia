@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { db } from "./firebase";
 import { collection, getDocs } from "firebase/firestore";
 import "./StatusManagement.css";
+import { FaSyncAlt } from 'react-icons/fa';
 
 type Reservation = {
   id: string;
@@ -103,10 +104,12 @@ export default function StatusManagement() {
       <h2>Status Termina</h2>
 
       <div className="refresh-button-container">
-        <button className="refresh-button" onClick={refreshData}>
-          🔄 Osvježi podatke
-        </button>
-      </div>
+  <button className="refresh-button" onClick={refreshData}>
+    <FaSyncAlt style={{ marginRight: '8px' }} />
+    Osvježi podatke
+  </button>
+</div>
+
 
       {Object.keys(groupedSessions)
         .sort(
