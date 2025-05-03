@@ -138,3 +138,26 @@ button:focus {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+.schedule-label {
+  background-color: #ECE5D1;
+  padding: 1rem 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid #848B79;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  display: inline-block;
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0 auto 40px auto; /* centriranje + razmak ispod */
+  width: 100%;
+}
+
+.schedule-label h2 {
+  margin: 0.3rem 0;
+}
+
+.schedule-label h2:last-child {
+  font-size: 1rem;
+  color: #444;
+  white-space: nowrap;
+}

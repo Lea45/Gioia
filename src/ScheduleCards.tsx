@@ -10,7 +10,7 @@ import {
   deleteDoc,
   updateDoc,
   doc,
-  getDoc
+  getDoc,
 } from "firebase/firestore";
 import "./ScheduleCards.css";
 import ConfirmPopup from "./ConfirmPopup";
@@ -19,8 +19,10 @@ import {
   FaUserFriends,
   FaCheckCircle,
   FaTimesCircle,
+  FaCalendarAlt,
 } from "react-icons/fa";
 import spinner from "./gears-spinner.svg";
+import { AiOutlineCalendar } from "react-icons/ai";
 
 type Session = {
   id: string;
@@ -45,48 +47,64 @@ type Props = {
 
 const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
   const [confirmSession, setConfirmSession] = useState<Session | null>(null);
-  const [confirmCancelSession, setConfirmCancelSession] = useState<Session | null>(null);
+  const [confirmCancelSession, setConfirmCancelSession] =
+    useState<Session | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [label, setLabel] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+
 
   const phone = localStorage.getItem("phone");
   const name = localStorage.getItem("userName");
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true); // ⬅️ Dodano
+  
       const sessionsSnap = await getDocs(collection(db, "sessions"));
       const reservationsSnap = await getDocs(collection(db, "reservations"));
       const metaDoc = await getDoc(doc(db, "draftSchedule", "meta"));
-
+  
       const fetchedSessions = sessionsSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Session[];
-
+  
       const fetchedReservations = reservationsSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Reservation[];
-
+  
       setSessions(fetchedSessions);
       setReservations(fetchedReservations);
-
+  
       if (metaDoc.exists()) {
         const data = metaDoc.data();
         if (data.label) setLabel(data.label);
       }
+  
+      setLoading(false); // ⬅️ Dodano
     };
-
+  
     fetchData();
   }, [onReservationMade]);
+  
 
   const getDayName = (dateStr: string) => {
     const [day, month, year] = dateStr.split(".");
     const iso = `${year}-${month}-${day}`;
     const date = new Date(iso);
-    const dani = ["NEDJELJA", "PONEDJELJAK", "UTORAK", "SRIJEDA", "ČETVRTAK", "PETAK", "SUBOTA"];
+    const dani = [
+      "NEDJELJA",
+      "PONEDJELJAK",
+      "UTORAK",
+      "SRIJEDA",
+      "ČETVRTAK",
+      "PETAK",
+      "SUBOTA",
+    ];
     return dani[date.getDay()];
   };
 
@@ -175,25 +193,62 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       });
     }
 
-    onShowPopup(`❌ Otkazali ste termin za ${session.date} u vrijeme ${session.time}`);
+    onShowPopup(
+      `❌ Otkazali ste termin za ${session.date} u vrijeme ${session.time}`
+    );
     onReservationMade();
   };
 
-  if (sessions.length === 0 || reservations.length === 0) {
+  if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <img src={spinner} alt="Učitavanje..." style={{ width: "120px", height: "120px" }} />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "60vh",
+        }}
+      >
+        <img
+          src={spinner}
+          alt="Učitavanje..."
+          style={{ width: "120px", height: "120px" }}
+        />
       </div>
     );
   }
+  
 
   return (
     <div style={{ padding: "16px" }}>
-      {label && <h2 className="schedule-label">📅 Raspored: {label}</h2>}
+      {label && (
+        <div className="schedule-label">
+          <h2
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <FaCalendarAlt size={18} color="#848B79" />
+            Raspored:
+          </h2>
+          <h2>{label}</h2>
+        </div>
+      )}
 
       {confirmCancelSession && (
         <ConfirmPopup
-          message={<><strong>Otkazati termin?</strong><br />{confirmCancelSession?.date}<br />{confirmCancelSession?.time}</>}
+          message={
+            <>
+              <strong>Otkazati termin?</strong>
+              <br />
+              {confirmCancelSession?.date}
+              <br />
+              {confirmCancelSession?.time}
+            </>
+          }
           onConfirm={() => {
             cancel(confirmCancelSession!);
             setConfirmCancelSession(null);
@@ -204,7 +259,15 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
 
       {confirmSession && (
         <ConfirmPopup
-          message={<><strong>Rezervirati termin?</strong><br />{confirmSession?.date}<br />{confirmSession?.time}</>}
+          message={
+            <>
+              <strong>Rezervirati termin?</strong>
+              <br />
+              {confirmSession?.date}
+              <br />
+              {confirmSession?.time}
+            </>
+          }
           onConfirm={() => {
             reserve(confirmSession!);
             setConfirmSession(null);
@@ -214,16 +277,29 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       )}
 
       {sortedDates.map((date) => (
-        <div key={date} className="day-card animate__animated animate__fadeInUp animate__faster">
+        <div
+          key={date}
+          className="day-card animate__animated animate__fadeInUp animate__faster"
+        >
           <button className="day-header" onClick={() => toggleDate(date)}>
             <span>{getDayName(date)}</span>
-            <span style={{ transition: "transform 0.3s", transform: expandedDate === date ? "rotate(180deg)" : "rotate(0deg)" }}>
+            <span
+              style={{
+                transition: "transform 0.3s",
+                transform:
+                  expandedDate === date ? "rotate(180deg)" : "rotate(0deg)",
+              }}
+            >
               ▼
             </span>
           </button>
 
           <AnimatedCollapse isOpen={expandedDate === date}>
-            {[...new Map(groupedSessions[date].map((s) => [s.time, s])).values()]
+            {[
+              ...new Map(
+                groupedSessions[date].map((s) => [s.time, s])
+              ).values(),
+            ]
               .sort((a, b) => a.time.localeCompare(b.time))
               .map((s, index) => {
                 const reserved = reservations.find(
@@ -232,10 +308,16 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                 const isFull = s.bookedSlots >= s.maxSlots;
 
                 return (
-                  <div key={s.id} className="session-card animate__animated animate__zoomIn animate__faster" style={{ animationDelay: `${index * 0.1}s` }}>
+                  <div
+                    key={s.id}
+                    className="session-card animate__animated animate__zoomIn animate__faster"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
                     <div className="session-info">
                       <span className="session-time">
-                        <FaClock style={{ marginRight: "6px", fontSize: "22px" }} />
+                        <FaClock
+                          style={{ marginRight: "6px", fontSize: "22px" }}
+                        />
                         <strong>{s.time}</strong>
                       </span>
                       <span>
@@ -250,13 +332,62 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                           <FaCheckCircle style={{ marginRight: "6px" }} />
                           Rezervirano
                         </div>
-                        <button className="cancel-button" onClick={() => setConfirmCancelSession(s)}>
-                          <FaTimesCircle style={{ marginRight: "6px" }} />
-                          Otkazivanje
-                        </button>
+                        {(() => {
+                          const now = new Date();
+                          const sessionDateTime = new Date(
+                            `${s.date}T${s.time.split(" - ")[0]}`
+                          );
+                          const timeDiffHours =
+                            (sessionDateTime.getTime() - now.getTime()) /
+                            (1000 * 60 * 60);
+                          const canCancel = timeDiffHours >= 3;
+
+                          return (() => {
+                            const now = new Date();
+
+                            // s.date je u formatu "dd.mm.yyyy."
+                            const [d, m, y] = s.date.split(".");
+                            const dateISO = `${y}-${m.padStart(
+                              2,
+                              "0"
+                            )}-${d.padStart(2, "0")}`;
+
+                            const startTime = s.time.split(" - ")[0]; // npr. "18:00"
+                            const sessionDateTime = new Date(
+                              `${dateISO}T${startTime}`
+                            );
+
+                            const timeDiffHours =
+                              (sessionDateTime.getTime() - now.getTime()) /
+                              (1000 * 60 * 60);
+                            const canCancel = timeDiffHours >= 3;
+
+                            return (
+                              <button
+                                className="cancel-button"
+                                onClick={() =>
+                                  canCancel ? setConfirmCancelSession(s) : null
+                                }
+                                disabled={!canCancel}
+                                style={{
+                                  opacity: canCancel ? 1 : 0.5,
+                                  cursor: canCancel ? "pointer" : "not-allowed",
+                                }}
+                              >
+                                <FaTimesCircle style={{ marginRight: "6px" }} />
+                                {canCancel
+                                  ? "Otkazivanje"
+                                  : "Prekasno za otkazivanje (<3h)"}
+                              </button>
+                            );
+                          })();
+                        })()}
                       </>
                     ) : (
-                      <button className={`reserve-button ${isFull ? "full" : ""}`} onClick={() => setConfirmSession(s)}>
+                      <button
+                        className={`reserve-button ${isFull ? "full" : ""}`}
+                        onClick={() => setConfirmSession(s)}
+                      >
                         {isFull ? "Lista čekanja" : "Rezerviraj"}
                       </button>
                     )}

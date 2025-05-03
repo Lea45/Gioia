@@ -11,6 +11,7 @@ import {
 import { db } from "./firebase";
 import ConfirmPopup from "./ConfirmPopup";
 import "./MyBookings.css";
+import spinner from "./gears-spinner.svg";
 
 type Booking = {
   id: string;
@@ -119,7 +120,7 @@ const MyBookings = ({
 
   return (
     <div className="my-bookings">
-      <h2 style={{ marginBottom: "20px" }}>Moji termini</h2>
+  
       {currentLabel && (
         <h3 style={{ textAlign: "center", marginBottom: "10px" }}>
           📌 Aktivni tjedan: {currentLabel}
@@ -127,32 +128,63 @@ const MyBookings = ({
       )}
 
       {loading ? (
-        <p>Učitavanje...</p>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "60vh",
+          }}
+        >
+          <img
+            src={spinner}
+            alt="Učitavanje..."
+            style={{ width: "120px", height: "120px" }}
+          />
+        </div>
       ) : bookings.length === 0 ? (
         <p>Nemate nijedan aktivan termin.</p>
       ) : (
         <div className="bookings-list">
-          {bookings.map((booking) => (
-            <div className="booking-card" key={booking.id}>
-              <div className="booking-info">
-                <span>{booking.date}</span>
-                <span>{booking.time}</span>
+          {bookings.map((booking) => {
+            const now = new Date();
+            const bookingDateTime = new Date(`${booking.date}T${booking.time}`);
+            const timeDiffHours =
+              (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+            const canCancel = timeDiffHours >= 3;
+
+            return (
+              <div className="booking-card" key={booking.id}>
+                <div className="booking-info">
+                  <span>{booking.date}</span>
+                  <span>{booking.time}</span>
+                </div>
+                <div className="booking-status">
+                  {booking.status === "rezervirano" ? (
+                    <span className="status-tag reserved">✅ Rezervirano</span>
+                  ) : (
+                    <span className="status-tag waiting">🕐 Čekanje</span>
+                  )}
+                </div>
+                <button
+                  className="cancel-button"
+                  onClick={() =>
+                    canCancel ? setConfirmCancelBooking(booking) : null
+                  }
+                  disabled={!canCancel}
+                  style={{
+                    opacity: canCancel ? 1 : 0.5,
+                    cursor: canCancel ? "pointer" : "not-allowed",
+                  }}
+                >
+                  ❌{" "}
+                  {canCancel ? "Otkazivanje" : "Prekasno za otkazivanje (<3h)"}
+                </button>
               </div>
-              <div className="booking-status">
-                {booking.status === "rezervirano" ? (
-                  <span className="status-tag reserved">✅ Rezervirano</span>
-                ) : (
-                  <span className="status-tag waiting">🕐 Čekanje</span>
-                )}
-              </div>
-              <button
-                className="cancel-button"
-                onClick={() => setConfirmCancelBooking(booking)}
-              >
-                ❌ Otkazivanje
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
