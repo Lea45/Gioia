@@ -55,6 +55,7 @@ export default function App() {
   };
 
   const renderHome = () => (
+    <>
     <div className="app-wrapper" role="region" aria-labelledby="card-title">
       <div className="card-container">
         <div className="header">
@@ -94,9 +95,12 @@ export default function App() {
     Instaliraj aplikaciju
   </button>
 )}
-
       </div>
     </div>
+    <footer className="app-footer">
+   <a href="https://www.lematech-digital.com" target="_blank" rel="noopener noreferrer">LeMatech-Digital</a> © 2025
+  </footer>
+</>
   );
 
   const renderClientLogin = () => (

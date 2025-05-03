@@ -1,40 +1,40 @@
 :root {
-    --bg-light: #ECE5D0;
-    --bg:       #ECE5D1;
-    --primary:  #838A78;
-    --accent:   #848B79;
-    --text-dark:  #000;
-    --text-light: #fff;
-  }
+  --bg-light: #ece5d0;
+  --bg: #ece5d1;
+  --primary: #838a78;
+  --accent: #848b79;
+  --text-dark: #000;
+  --text-light: #fff;
+}
 
 .tab-bar {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    background-color: var(--bg-light);
-    border: 3px solid #6b8e23; 
-    padding: 1rem;
-    border-radius: 12px;
-  }
-  
-  .tab-button {
-    border: none;
-    background-color: var(--bg);
-    padding: 0.6rem 1.2rem;
-    border-radius: 12px;
-    font-weight: 600;
-    color: var(--primary);
-    cursor: pointer;
-    transition: 0.2s;
-  }
-  
-  .tab-button:hover {
-    background-color: var(--accent);
-    color: var(--text-light);
-  }
-  
-  .tab-button.active {
-    background-color: var(--primary);
-    color: var(--text-light);
-  }
-  
+  display: flex;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
+  margin-bottom: 1.5rem;
+}
+
+.tab-button {
+  padding: 0.6rem 1.2rem;
+  border-radius: 12px;
+  border: 2px solid var(--accent);
+  background-color: var(--bg);
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tab-button:hover {
+  background-color: var(--accent);
+  color: var(--text-light);
+}
+
+.tab-button.active {
+  background-color: var(--primary);
+  color: var(--text-light);
+}

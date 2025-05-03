@@ -224,6 +224,30 @@ button {
   }
 }
 
+.app-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: var(--primary);
+  color: #ECE5D1;
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.9rem;
+  font-family: 'Special Elite', serif;
+  z-index: 1000;
+}
+
+.app-footer a {
+  color: #ECE5D1;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.app-footer a:hover {
+  text-decoration: underline;
+}
+
 /* Responsivnost */
 @media (max-width: 768px) {
   .app-wrapper {
