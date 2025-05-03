@@ -22,7 +22,7 @@ import {
   FaCalendarAlt,
 } from "react-icons/fa";
 import spinner from "./gears-spinner.svg";
-import { AiOutlineCalendar } from "react-icons/ai";
+
 
 type Session = {
   id: string;
@@ -55,42 +55,40 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
   const [label, setLabel] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
-
   const phone = localStorage.getItem("phone");
   const name = localStorage.getItem("userName");
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true); // ⬅️ Dodano
-  
+
       const sessionsSnap = await getDocs(collection(db, "sessions"));
       const reservationsSnap = await getDocs(collection(db, "reservations"));
       const metaDoc = await getDoc(doc(db, "draftSchedule", "meta"));
-  
+
       const fetchedSessions = sessionsSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Session[];
-  
+
       const fetchedReservations = reservationsSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Reservation[];
-  
+
       setSessions(fetchedSessions);
       setReservations(fetchedReservations);
-  
+
       if (metaDoc.exists()) {
         const data = metaDoc.data();
         if (data.label) setLabel(data.label);
       }
-  
+
       setLoading(false); // ⬅️ Dodano
     };
-  
+
     fetchData();
   }, [onReservationMade]);
-  
 
   const getDayName = (dateStr: string) => {
     const [day, month, year] = dateStr.split(".");
@@ -217,7 +215,6 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       </div>
     );
   }
-  
 
   return (
     <div style={{ padding: "16px" }}>
@@ -334,53 +331,47 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                         </div>
                         {(() => {
                           const now = new Date();
+
+                          const [d, m, y] = s.date.split(".");
+                          const dateISO = `${y}-${m.padStart(
+                            2,
+                            "0"
+                          )}-${d.padStart(2, "0")}`;
+                          const startTime = s.time.split(" - ")[0];
                           const sessionDateTime = new Date(
-                            `${s.date}T${s.time.split(" - ")[0]}`
+                            `${dateISO}T${startTime}`
                           );
-                          const timeDiffHours =
-                            (sessionDateTime.getTime() - now.getTime()) /
-                            (1000 * 60 * 60);
-                          const canCancel = timeDiffHours >= 3;
 
-                          return (() => {
-                            const now = new Date();
+                          const isToday =
+                            now.toDateString() ===
+                            sessionDateTime.toDateString();
 
-                            // s.date je u formatu "dd.mm.yyyy."
-                            const [d, m, y] = s.date.split(".");
-                            const dateISO = `${y}-${m.padStart(
-                              2,
-                              "0"
-                            )}-${d.padStart(2, "0")}`;
-
-                            const startTime = s.time.split(" - ")[0]; // npr. "18:00"
-                            const sessionDateTime = new Date(
-                              `${dateISO}T${startTime}`
-                            );
-
+                          let canCancel = true;
+                          if (isToday) {
                             const timeDiffHours =
                               (sessionDateTime.getTime() - now.getTime()) /
                               (1000 * 60 * 60);
-                            const canCancel = timeDiffHours >= 3;
+                            canCancel = timeDiffHours >= 3;
+                          }
 
-                            return (
-                              <button
-                                className="cancel-button"
-                                onClick={() =>
-                                  canCancel ? setConfirmCancelSession(s) : null
-                                }
-                                disabled={!canCancel}
-                                style={{
-                                  opacity: canCancel ? 1 : 0.5,
-                                  cursor: canCancel ? "pointer" : "not-allowed",
-                                }}
-                              >
-                                <FaTimesCircle style={{ marginRight: "6px" }} />
-                                {canCancel
-                                  ? "Otkazivanje"
-                                  : "Prekasno za otkazivanje (<3h)"}
-                              </button>
-                            );
-                          })();
+                          return (
+                            <button
+                              className="cancel-button"
+                              onClick={() =>
+                                canCancel ? setConfirmCancelSession(s) : null
+                              }
+                              disabled={!canCancel}
+                              style={{
+                                opacity: canCancel ? 1 : 0.5,
+                                cursor: canCancel ? "pointer" : "not-allowed",
+                              }}
+                            >
+                              <FaTimesCircle style={{ marginRight: "6px" }} />
+                              {canCancel
+                                ? "Otkazivanje"
+                                : "Prekasno za otkazivanje (danas unutar 3h)"}
+                            </button>
+                          );
                         })()}
                       </>
                     ) : (

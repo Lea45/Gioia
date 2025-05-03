@@ -147,44 +147,71 @@ const MyBookings = ({
         <p>Nemate nijedan aktivan termin.</p>
       ) : (
         <div className="bookings-list">
-          {bookings.map((booking) => {
-            const now = new Date();
-            const bookingDateTime = new Date(`${booking.date}T${booking.time}`);
-            const timeDiffHours =
-              (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+         {bookings.map((booking) => {
+  const now = new Date();
 
-            const canCancel = timeDiffHours >= 3;
+  // Parsiranje datuma i vremena
+  const [d, m, y] = booking.date.split(".");
+  const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 
-            return (
-              <div className="booking-card" key={booking.id}>
-                <div className="booking-info">
-                  <span>{booking.date}</span>
-                  <span>{booking.time}</span>
-                </div>
-                <div className="booking-status">
-                  {booking.status === "rezervirano" ? (
-                    <span className="status-tag reserved">✅ Rezervirano</span>
-                  ) : (
-                    <span className="status-tag waiting">🕐 Čekanje</span>
-                  )}
-                </div>
-                <button
-                  className="cancel-button"
-                  onClick={() =>
-                    canCancel ? setConfirmCancelBooking(booking) : null
-                  }
-                  disabled={!canCancel}
-                  style={{
-                    opacity: canCancel ? 1 : 0.5,
-                    cursor: canCancel ? "pointer" : "not-allowed",
-                  }}
-                >
-                  ❌{" "}
-                  {canCancel ? "Otkazivanje" : "Prekasno za otkazivanje (<3h)"}
-                </button>
-              </div>
-            );
-          })}
+  // Uzmi samo vrijeme početka termina (npr. "16:00")
+  const rawTime = booking.time.split(/[-–]/)[0].trim(); // podržava "-" i "–"
+  const [hours, minutes] = rawTime.split(":").map(Number);
+
+  // Napravi točan Date objekt termina
+  const bookingDateTime = new Date(dateISO);
+  bookingDateTime.setHours(hours, minutes, 0, 0); // ručno postavi sat i minutu
+
+  const isToday = now.toDateString() === bookingDateTime.toDateString();
+  const isPast = bookingDateTime.getTime() < now.getTime();
+
+  let canCancel = true;
+
+  if (isPast) {
+    canCancel = false;
+  } else if (isToday) {
+    const timeDiffHours = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    canCancel = timeDiffHours >= 3;
+  }
+
+  return (
+    <div className="booking-card" key={booking.id}>
+      <div className="booking-info">
+        <span>{booking.date}</span>
+        <span>{booking.time}</span>
+      </div>
+      <div className="booking-status">
+        {booking.status === "rezervirano" ? (
+          <span className="status-tag reserved">✅ Rezervirano</span>
+        ) : (
+          <span className="status-tag waiting">🕐 Čekanje</span>
+        )}
+      </div>
+      <button
+        className="cancel-button"
+        onClick={() =>
+          canCancel ? setConfirmCancelBooking(booking) : null
+        }
+        disabled={!canCancel}
+        style={{
+          opacity: canCancel ? 1 : 0.5,
+          cursor: canCancel ? "pointer" : "not-allowed",
+        }}
+      >
+        ❌{" "}
+        {canCancel
+          ? "Otkazivanje"
+          : isPast
+            ? "Termin je prošao"
+            : "Prekasno za otkazivanje (danas unutar 3h)"}
+      </button>
+    </div>
+  );
+})}
+
+
+
+
         </div>
       )}
 
