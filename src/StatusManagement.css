@@ -69,6 +69,7 @@
   font-size: 1rem;
   color: #555;
   margin-top: 0.5rem;
+  text-transform: uppercase;
 }
 
 .sessions-list {
