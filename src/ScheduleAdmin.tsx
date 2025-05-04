@@ -13,7 +13,16 @@ import {
 import spinner from "./gears-spinner.svg";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { FaCalendarAlt, FaEdit, FaRegListAlt,FaRecycle, FaDownload, FaThumbtack, FaCheckCircle, FaPlusCircle} from "react-icons/fa";
+import {
+  FaCalendarAlt,
+  FaEdit,
+  FaRegListAlt,
+  FaRecycle,
+  FaDownload,
+  FaThumbtack,
+  FaCheckCircle,
+  FaPlusCircle,
+} from "react-icons/fa";
 
 type Session = {
   id: string;
@@ -256,29 +265,41 @@ export default function ScheduleAdmin() {
         </div>
       )}
 
-<div className="tab-switcher">
-  <button onClick={() => setView("sessions")} disabled={view === "sessions"}>
-    <FaCalendarAlt style={{ marginRight: "0.4rem" }} />
-    Tjedni raspored
-  </button>
-  <button onClick={() => setView("draft")} disabled={view === "draft"}>
-    <FaEdit style={{ marginRight: "0.4rem" }} />
-    Uredi tjedan
-  </button>
-  <button onClick={() => setView("template")} disabled={view === "template"}>
-    <FaRegListAlt style={{ marginRight: "0.4rem" }} />
-    Defaultni raspored
-  </button>
-</div>
+      <div className="tab-switcher">
+        <button
+          onClick={() => setView("sessions")}
+          disabled={view === "sessions"}
+        >
+          <FaCalendarAlt style={{ marginRight: "0.4rem" }} />
+          Tjedni raspored
+        </button>
+        <button onClick={() => setView("draft")} disabled={view === "draft"}>
+          <FaEdit style={{ marginRight: "0.4rem" }} />
+          Uredi tjedan
+        </button>
+        <button
+          onClick={() => setView("template")}
+          disabled={view === "template"}
+        >
+          <FaRegListAlt style={{ marginRight: "0.4rem" }} />
+          Defaultni raspored
+        </button>
+      </div>
 
-
-      
       {view === "sessions" && currentLabel && (
         <div style={{ textAlign: "center", margin: "1rem 0" }}>
-          <div style={{ fontSize: "18px", fontWeight: "600", display: "flex", justifyContent: "center", alignItems: "center" }}>
-      <FaCalendarAlt style={{ marginRight: "0.4rem" }} />
-      Raspored
-    </div>
+          <div
+            style={{
+              fontSize: "18px",
+              fontWeight: "600",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <FaCalendarAlt style={{ marginRight: "0.4rem" }} />
+            Raspored
+          </div>
           <div
             style={{ fontSize: "16px", fontWeight: "500", marginTop: "0.3rem" }}
           >
@@ -295,56 +316,60 @@ export default function ScheduleAdmin() {
                 Početak tjedna
               </label>
               <DatePicker
-  selected={startDate}
-  onChange={(selectedDate) => {
-    if (!selectedDate) return;
+                selected={startDate}
+                onChange={(selectedDate) => {
+                  if (!selectedDate) return;
 
-    const selected = new Date(selectedDate);
+                  const selected = new Date(selectedDate);
 
-    const adjustedStart =
-      selected.getDay() === 0
-        ? new Date(selected.setDate(selected.getDate() - 6))
-        : new Date(selected.setDate(selected.getDate() - (selected.getDay() - 1)));
+                  const adjustedStart =
+                    selected.getDay() === 0
+                      ? new Date(selected.setDate(selected.getDate() - 6))
+                      : new Date(
+                          selected.setDate(
+                            selected.getDate() - (selected.getDay() - 1)
+                          )
+                        );
 
-    setStartDate(adjustedStart);
+                  setStartDate(adjustedStart);
 
-    const end = new Date(adjustedStart);
-    end.setDate(adjustedStart.getDate() + 6);
+                  const end = new Date(adjustedStart);
+                  end.setDate(adjustedStart.getDate() + 6);
 
-    const label = `${adjustedStart.toLocaleDateString("hr-HR")} - ${end.toLocaleDateString("hr-HR")}`;
-    setLabelInput(label);
-  }}
-  dateFormat="dd.MM.yyyy"
-  placeholderText="Odaberite datum"
-  calendarStartDay={1} // 🟢 OVO POSTAVLJA PONEDJELJAK KAO PRVI DAN
-  className="week-label-input"
-/>
-
+                  const label = `${adjustedStart.toLocaleDateString(
+                    "hr-HR"
+                  )} - ${end.toLocaleDateString("hr-HR")}`;
+                  setLabelInput(label);
+                }}
+                dateFormat="dd.MM.yyyy"
+                placeholderText="Odaberite datum"
+                calendarStartDay={1} // 🟢 OVO POSTAVLJA PONEDJELJAK KAO PRVI DAN
+                className="week-label-input"
+              />
             </div>
 
             <button
-  className="generate-button"
-  onClick={() => {
-    if (!labelInput.trim()) {
-      setShowMissingLabelModal(true);
-      return;
-    }
+              className="generate-button"
+              onClick={() => {
+                if (!labelInput.trim()) {
+                  setShowMissingLabelModal(true);
+                  return;
+                }
 
-    setConfirmPullTemplate(true);
-  }}
->
-  <FaDownload style={{ marginRight: "0.4rem" }} />
-  Povuci iz predloška
-</button>
-
+                setConfirmPullTemplate(true);
+              }}
+            >
+              <FaDownload style={{ marginRight: "0.4rem" }} />
+              Povuci iz predloška
+            </button>
           </div>
 
           {currentLabel && (
             <div className="active-draft-label">
               <div>
-  <FaThumbtack style={{ marginRight: "0.4rem" }} />
-  Aktivni tjedan:
-</div>
+                <FaThumbtack style={{ marginRight: "0.4rem" }} />
+                Aktivni tjedan:
+              </div>
 
               <div>{currentLabel}</div>
             </div>
@@ -358,13 +383,12 @@ export default function ScheduleAdmin() {
             }}
           >
             <button
-  className="publish-button"
-  onClick={() => setConfirmPublish(true)}
->
-  <FaCheckCircle style={{ marginRight: "0.4rem" }} />
-  Objavi raspored
-</button>
-
+              className="publish-button"
+              onClick={() => setConfirmPublish(true)}
+            >
+              <FaCheckCircle style={{ marginRight: "0.4rem" }} />
+              Objavi raspored
+            </button>
           </div>
         </>
       )}
@@ -470,13 +494,29 @@ export default function ScheduleAdmin() {
       <div className="sessions-list">
         {Object.entries(grouped)
           .sort((a, b) => {
-            const da = new Date(a[0].split(".").reverse().join("-"));
-            const db = new Date(b[0].split(".").reverse().join("-"));
-            return da.getTime() - db.getTime();
+            if (view === "template") {
+              const daniRedoslijed = [
+                "PONEDJELJAK",
+                "UTORAK",
+                "SRIJEDA",
+                "ČETVRTAK",
+                "PETAK",
+                "SUBOTA",
+                "NEDJELJA",
+              ];
+              return (
+                daniRedoslijed.indexOf(a[0].toUpperCase()) -
+                daniRedoslijed.indexOf(b[0].toUpperCase())
+              );
+            } else {
+              const da = new Date(a[0].split(".").reverse().join("-"));
+              const db = new Date(b[0].split(".").reverse().join("-"));
+              return da.getTime() - db.getTime();
+            }
           })
           .map(([date, list]) => (
             <div key={date} className="session-group">
-              <h4>{formatDay(date)}</h4>
+              <h4>{view === "template" ? date : formatDay(date)}</h4>
               {[...list]
                 .sort((a, b) => {
                   const getMinutes = (time: string) => {
@@ -508,18 +548,21 @@ export default function ScheduleAdmin() {
                 view === "sessions") && (
                 <>
                   <button
-  className="add-button-small"
-  onClick={() => setShowModal(date)}
-  style={{ marginTop: "0.5rem" }}
->
-  <FaPlusCircle style={{ marginRight: "0.4rem" }} />
-  Dodaj termin
-</button>
+                    className="add-button-small"
+                    onClick={() => setShowModal(date)}
+                    style={{ marginTop: "0.5rem" }}
+                  >
+                    <FaPlusCircle style={{ marginRight: "0.4rem" }} />
+                    Dodaj termin
+                  </button>
 
                   {showModal === date && (
                     <div className="modal-overlay">
                       <div className="modal">
-                        <h4>Dodaj termin za {formatDay(date)}</h4>
+                        <h4>
+                          Dodaj termin za{" "}
+                          {view === "template" ? date : formatDay(date)}
+                        </h4>
                         <input
                           type="text"
                           placeholder="08:00 - 09:00"
