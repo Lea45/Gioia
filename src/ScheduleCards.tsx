@@ -356,17 +356,13 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                             `${dateISO}T${startTime}`
                           );
 
-                          const isToday =
-                            now.toDateString() ===
-                            sessionDateTime.toDateString();
+                          const timeDiffHours =
+                            (sessionDateTime.getTime() - now.getTime()) /
+                            (1000 * 60 * 60);
 
-                          let canCancel = true;
-                          if (isToday) {
-                            const timeDiffHours =
-                              (sessionDateTime.getTime() - now.getTime()) /
-                              (1000 * 60 * 60);
-                            canCancel = timeDiffHours >= 3;
-                          }
+                          const isPast =
+                            sessionDateTime.getTime() < now.getTime();
+                          const canCancel = !isPast && timeDiffHours >= 3;
 
                           return (
                             <button
