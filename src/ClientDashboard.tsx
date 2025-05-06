@@ -74,7 +74,7 @@ export default function ClientDashboard() {
   };
 
   return (
-    <div style={dashboardWrapper}>
+    <div className="client-dashboard" style={dashboardWrapper}>
       <div className="tab-bar">
         <button
           className={`tab-button ${activeTab === "raspored" ? "active" : ""}`}
