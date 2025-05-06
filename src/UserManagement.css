@@ -121,7 +121,7 @@
 }
 
 .confirm-modal {
-  background-color: #ece5d1;
+  background-color: white;
   padding: 2rem;
   border-radius: 12px;
   text-align: center;
@@ -172,6 +172,86 @@
 .confirm-no:hover {
   background-color: #d6cfbc;
   transform: scale(1.05);
+}
+
+.load-more-button {
+  margin: 1rem auto;
+  display: block;
+  padding: 0.8rem 1.5rem;
+  background-color: #848b79;
+  color: #ece5d1;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.load-more-button:hover {
+  background-color: #6b8e23;
+  transform: scale(1.05);
+}
+
+.load-more-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/*NOTIS*/
+
+.notifications-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  background-color: #ece5d1;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  border: 2px solid #848b79;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  font-family: "Special Elite", serif;
+}
+
+.notifications-container h3 {
+  text-align: center;
+  color: #848b79;
+  font-family: "Dancing Script", cursive;
+  font-size: 1.8rem;
+}
+
+.notifications-input {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.notification-input {
+  padding: 0.8rem 1rem;
+  font-size: 1rem;
+  border: 1px solid #848b79;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 400px;
+  background-color: #ece5d1;
+  color: #333;
+}
+
+.notify-button {
+  padding: 0.8rem 1rem;
+  background-color: #848b79;
+  color: #ece5d1;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  max-width: 400px;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.notify-button:hover {
+  background-color: #6b8e23;
+  transform: scale(1.03);
 }
 
 /* Animacije */
