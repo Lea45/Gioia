@@ -51,6 +51,8 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [label, setLabel] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [infoPopupMessage, setInfoPopupMessage] = useState<string | null>(null);
+
 
   const phone = localStorage.getItem("phone");
   const name = localStorage.getItem("userName");
@@ -85,7 +87,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     };
 
     fetchData();
-  }, [onReservationMade]);
+  }, []); // Pokreni useEffect SAMO jednom prilikom mountanja
 
   const getDayName = (dateStr: string) => {
     const [day, month, year] = dateStr.split(".");
@@ -132,7 +134,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       return;
     }
 
-    const adminPhone = "0911529422"; // <-- ovdje ide broj za admina
+    const adminPhone = "0911529422"; // <-- ovdje ide broj za admina za vise rezervacija
 
     if (phone !== adminPhone) {
       const sameDayReservation = reservations.find(
@@ -157,35 +159,57 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     const status =
       session.bookedSlots < session.maxSlots ? "rezervirano" : "cekanje";
 
-    try {
-      const reservationRef = await addDoc(collection(db, "reservations"), {
-        phone,
-        name,
-        sessionId: session.id,
-        date: session.date,
-        time: session.time,
-        status,
-        createdAt: new Date(),
-        notified: false,
-      });
-
-      if (status === "rezervirano") {
-        await updateDoc(doc(db, "sessions", session.id), {
-          bookedSlots: session.bookedSlots + 1,
+      try {
+        const reservationRef = await addDoc(collection(db, "reservations"), {
+          phone,
+          name,
+          sessionId: session.id,
+          date: session.date,
+          time: session.time,
+          status,
+          createdAt: new Date(),
+          notified: false,
         });
+      
+        // ✅ Lokalno dodaj novu rezervaciju
+        const newReservation: Reservation = {
+          id: reservationRef.id,
+          phone,
+          name,
+          sessionId: session.id,
+          status,
+        };
+        setReservations((prev) => [...prev, newReservation]);
+      
+        // ✅ Ako je rezervirano, lokalno ažuriraj bookedSlots
+        if (status === "rezervirano") {
+          await updateDoc(doc(db, "sessions", session.id), {
+            bookedSlots: session.bookedSlots + 1,
+          });
+      
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === session.id
+                ? { ...s, bookedSlots: s.bookedSlots + 1 }
+                : s
+            )
+          );
+        }
+      
+        // ✅ Prikaži obavijest
+        onShowPopup(
+          status === "rezervirano"
+            ? `✅ Rezervirali ste termin:\n${session.date}\n${session.time}`
+            : `🕐 Dodani ste na listu čekanja:\n${session.date}\n${session.time}`
+        );
+      
+        // ❌ Nema više potrebe za onReservationMade(); jer ne radimo refetch
+      
+      } catch (error) {
+        console.error("⛔ Greška pri upisu rezervacije:", error);
+        onShowPopup("⛔ Greška pri rezervaciji. Pokušajte ponovno.");
       }
-
-      onShowPopup(
-        status === "rezervirano"
-          ? `✅ Rezervirali ste termin:\n${session.date}\n${session.time}`
-          : `🕐 Dodani ste na listu čekanja:\n${session.date}\n${session.time}`
-      );
-
-      onReservationMade();
-    } catch (error) {
-      console.error("⛔ Greška pri upisu rezervacije:", error);
-      onShowPopup("⛔ Greška pri rezervaciji. Pokušajte ponovno.");
-    }
+      
   };
 
   const cancel = async (session: Session) => {
