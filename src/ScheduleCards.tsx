@@ -400,7 +400,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
 
                           const isPast =
                             sessionDateTime.getTime() < now.getTime();
-                          const canCancel = !isPast && timeDiffHours >= 3;
+                          const canCancel = !isPast && timeDiffHours >= 2;
 
                           return (
                             <button

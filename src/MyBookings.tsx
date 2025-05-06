@@ -200,7 +200,7 @@ const MyBookings = ({
             } else if (isToday) {
               const timeDiffHours =
                 (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-              canCancel = timeDiffHours >= 3;
+              canCancel = timeDiffHours >= 2;
             }
 
             return (
