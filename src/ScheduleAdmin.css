@@ -114,7 +114,7 @@
   text-align: center;
 }
 
-.schedule-admin-container .sessions-list {
+.sessions-list {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -122,20 +122,22 @@
   margin: 0 auto;
 }
 
-.schedule-admin-container .session-group {
+.session-group {
   background-color: #ECE5D1;
   border: 2px solid #848B79;
   border-radius: 12px;
   padding: 1rem;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2rem; /* Dodano */
 }
 
-.schedule-admin-container .session-group h4 {
+.session-group h4 {
   text-transform: uppercase;
   color: #848B79;
   font-size: 1.1rem;
   margin-bottom: 0.8rem;
 }
+
 
 .schedule-admin-container .session-item-admin {
   display: flex;

@@ -54,6 +54,9 @@ export default function ScheduleAdmin() {
   const [isLoading, setIsLoading] = useState(false);
   const [showMissingLabelModal, setShowMissingLabelModal] = useState(false);
   const [startDate, setStartDate] = useState<Date | null>(null);
+  const [confirmDisableDay, setConfirmDisableDay] = useState<string | null>(
+    null
+  );
 
   const fetchSessions = async () => {
     const source =
@@ -112,6 +115,20 @@ export default function ScheduleAdmin() {
     setShowModal(null);
     setNewTime("");
     setNewSlots(5);
+    fetchSessions();
+  };
+
+  const disableDay = async (date: string) => {
+    const source =
+      view === "template"
+        ? "defaultSchedule"
+        : view === "draft"
+        ? "draftSchedule"
+        : "sessions";
+
+    const allDocs = await getDocs(collection(db, source));
+    const toDelete = allDocs.docs.filter((doc) => doc.data().date === date);
+    await Promise.all(toDelete.map((doc) => deleteDoc(doc.ref)));
     fetchSessions();
   };
 
@@ -474,6 +491,37 @@ export default function ScheduleAdmin() {
         </div>
       )}
 
+      {confirmDisableDay && (
+        <div className="schedule-admin-container modal-overlay">
+          <div className="modal">
+            <p>
+              Jesi li sigurna da želiš <strong>onemogućiti sve termine</strong>{" "}
+              za dan:{" "}
+              <strong>
+                {view === "template"
+                  ? confirmDisableDay
+                  : formatDay(confirmDisableDay)}
+              </strong>
+              ?
+            </p>
+            <button
+              onClick={async () => {
+                await disableDay(confirmDisableDay);
+                setConfirmDisableDay(null);
+              }}
+              style={{
+                marginRight: "0.5rem",
+                backgroundColor: "#848B79",
+                color: "white",
+              }}
+            >
+              Da, onemogući
+            </button>
+            <button onClick={() => setConfirmDisableDay(null)}>Odustani</button>
+          </div>
+        </div>
+      )}
+
       {showMissingLabelModal && (
         <div className="modal-overlay">
           <div className="modal">
@@ -491,118 +539,134 @@ export default function ScheduleAdmin() {
         </div>
       )}
 
-      <div className="sessions-list">
-        {Object.entries(grouped)
-          .sort((a, b) => {
-            if (view === "template") {
-              const daniRedoslijed = [
-                "PONEDJELJAK",
-                "UTORAK",
-                "SRIJEDA",
-                "ČETVRTAK",
-                "PETAK",
-                "SUBOTA",
-                "NEDJELJA",
-              ];
-              return (
-                daniRedoslijed.indexOf(a[0].toUpperCase()) -
-                daniRedoslijed.indexOf(b[0].toUpperCase())
-              );
-            } else {
-              const da = new Date(a[0].split(".").reverse().join("-"));
-              const db = new Date(b[0].split(".").reverse().join("-"));
-              return da.getTime() - db.getTime();
-            }
-          })
-          .map(([date, list]) => (
-            <div key={date} className="session-group">
-              <h4>{view === "template" ? date : formatDay(date)}</h4>
-              {[...list]
-                .sort((a, b) => {
-                  const getMinutes = (time: string) => {
-                    const [h, m] = time.split(" - ")[0].split(":").map(Number);
-                    return h * 60 + m;
-                  };
-                  return getMinutes(a.time) - getMinutes(b.time);
-                })
-                .map((s) => (
-                  <div key={s.id} className="session-item-admin">
-                    <span>
-                      {s.time} ({s.bookedSlots}/{s.maxSlots})
-                    </span>
-                    <button
-                      onClick={() =>
-                        setConfirmDelete({
-                          id: s.id,
-                          date: s.date,
-                          time: s.time,
-                        })
-                      }
-                    >
-                      Obriši
-                    </button>
-                  </div>
-                ))}
-              {(view === "draft" ||
-                view === "template" ||
-                view === "sessions") && (
-                <>
-                  <button
-                    className="add-button-small"
-                    onClick={() => setShowModal(date)}
-                    style={{ marginTop: "0.5rem" }}
-                  >
-                    <FaPlusCircle style={{ marginRight: "0.4rem" }} />
-                    Dodaj termin
-                  </button>
+      {Object.entries(grouped)
+        .sort((a, b) => {
+          if (view === "template") {
+            const daniRedoslijed = [
+              "PONEDJELJAK",
+              "UTORAK",
+              "SRIJEDA",
+              "ČETVRTAK",
+              "PETAK",
+              "SUBOTA",
+              "NEDJELJA",
+            ];
+            return (
+              daniRedoslijed.indexOf(a[0].toUpperCase()) -
+              daniRedoslijed.indexOf(b[0].toUpperCase())
+            );
+          } else {
+            const da = new Date(a[0].split(".").reverse().join("-"));
+            const db = new Date(b[0].split(".").reverse().join("-"));
+            return da.getTime() - db.getTime();
+          }
+        })
+        .map(([date, list]) => (
+          <div key={date} className="session-group">
+            <h4>{view === "template" ? date : formatDay(date)}</h4>
 
-                  {showModal === date && (
-                    <div className="modal-overlay">
-                      <div className="modal">
-                        <h4>
-                          Dodaj termin za{" "}
-                          {view === "template" ? date : formatDay(date)}
-                        </h4>
-                        <input
-                          type="text"
-                          placeholder="08:00 - 09:00"
-                          value={newTime}
-                          onChange={(e) => setNewTime(e.target.value)}
-                          style={{
-                            display: "block",
-                            margin: "0.5rem 0",
-                            padding: "0.4rem",
-                          }}
-                        />
-                        <input
-                          type="number"
-                          min={1}
-                          placeholder="Broj mjesta"
-                          value={newSlots}
-                          onChange={(e) => setNewSlots(Number(e.target.value))}
-                          style={{
-                            display: "block",
-                            marginBottom: "0.5rem",
-                            padding: "0.4rem",
-                          }}
-                        />
-                        <button
-                          onClick={() => addSession(date)}
-                          style={{ marginRight: "0.5rem" }}
-                        >
-                          Spremi
-                        </button>
-                        <button onClick={() => setShowModal(null)}>
-                          Odustani
-                        </button>
-                      </div>
+            {view === "draft" && (
+              <button
+                onClick={() => setConfirmDisableDay(date)}
+                style={{
+                  backgroundColor: "#848B79",
+                  color: "white",
+                  padding: "0.5rem 0.8rem",
+                  borderRadius: "4px",
+                  fontSize: "0.85rem",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Onemogući dan
+              </button>
+            )}
+
+            {[...list]
+              .sort((a, b) => {
+                const getMinutes = (time: string) => {
+                  const [h, m] = time.split(" - ")[0].split(":").map(Number);
+                  return h * 60 + m;
+                };
+                return getMinutes(a.time) - getMinutes(b.time);
+              })
+              .map((s) => (
+                <div key={s.id} className="session-item-admin">
+                  <span>
+                    {s.time} ({s.bookedSlots}/{s.maxSlots})
+                  </span>
+                  <button
+                    onClick={() =>
+                      setConfirmDelete({
+                        id: s.id,
+                        date: s.date,
+                        time: s.time,
+                      })
+                    }
+                  >
+                    Obriši
+                  </button>
+                </div>
+              ))}
+
+            {(view === "draft" ||
+              view === "template" ||
+              view === "sessions") && (
+              <>
+                <button
+                  className="add-button-small"
+                  onClick={() => setShowModal(date)}
+                  style={{ marginTop: "0.5rem" }}
+                >
+                  <FaPlusCircle style={{ marginRight: "0.4rem" }} />
+                  Dodaj termin
+                </button>
+
+                {showModal === date && (
+                  <div className="modal-overlay">
+                    <div className="modal">
+                      <h4>
+                        Dodaj termin za{" "}
+                        {view === "template" ? date : formatDay(date)}
+                      </h4>
+                      <input
+                        type="text"
+                        placeholder="08:00 - 09:00"
+                        value={newTime}
+                        onChange={(e) => setNewTime(e.target.value)}
+                        style={{
+                          display: "block",
+                          margin: "0.5rem 0",
+                          padding: "0.4rem",
+                        }}
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        placeholder="Broj mjesta"
+                        value={newSlots}
+                        onChange={(e) => setNewSlots(Number(e.target.value))}
+                        style={{
+                          display: "block",
+                          marginBottom: "0.5rem",
+                          padding: "0.4rem",
+                        }}
+                      />
+                      <button
+                        onClick={() => addSession(date)}
+                        style={{ marginRight: "0.5rem" }}
+                      >
+                        Spremi
+                      </button>
+                      <button onClick={() => setShowModal(null)}>
+                        Odustani
+                      </button>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
-      </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ))}
     </div>
   );
 }
