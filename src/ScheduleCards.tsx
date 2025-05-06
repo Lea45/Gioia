@@ -132,6 +132,15 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       return;
     }
 
+    const sameDayReservation = reservations.find(
+      (r) => r.phone === phone && sessions.find(s => s.id === r.sessionId)?.date === session.date
+    );
+    if (sameDayReservation) {
+      onShowPopup("⛔ Već imate rezervaciju za taj dan.");
+      return;
+    }
+    
+
     const already = reservations.find(
       (r) => r.sessionId === session.id && r.phone === phone
     );
