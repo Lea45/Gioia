@@ -1,40 +1,67 @@
-import { useState, useEffect } from 'react';
-import { db } from './firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import './UserManagement.css';
+import { useState, useEffect } from "react";
+import { db } from "./firebase";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
+import "./UserManagement.css";
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<{ id: string; name: string; phone: string }[]>([]);
-  const [newUserName, setNewUserName] = useState('');
-  const [newUserPhone, setNewUserPhone] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [users, setUsers] = useState<
+    { id: string; name: string; phone: string }[]
+  >([]);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserPhone, setNewUserPhone] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [userToDelete, setUserToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [duplicatePhonePopup, setDuplicatePhonePopup] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
   const fetchUsers = async () => {
-    const querySnapshot = await getDocs(collection(db, 'users'));
-    const usersList = querySnapshot.docs.map(doc => ({
+    const querySnapshot = await getDocs(collection(db, "users"));
+    const usersList = querySnapshot.docs.map((doc) => ({
       id: doc.id,
       name: doc.data().name,
-      phone: doc.data().phone
+      phone: doc.data().phone,
     }));
     setUsers(usersList);
   };
 
   const handleAddUser = async () => {
-    if (!newUserName.trim() || !newUserPhone.trim()) return;
-    await addDoc(collection(db, 'users'), {
-      name: newUserName.trim(),
-      fullName: newUserName.trim(), // <-- DODAJ I fullName!
-      phone: newUserPhone.trim(),
-      active: true
+    const name = newUserName.trim();
+    const phone = newUserPhone.trim();
+
+    if (!name || !phone) return;
+
+    // ✅ Provjera postoji li već korisnik s tim brojem
+    const existingUser = users.find((u) => u.phone === phone);
+    if (existingUser) {
+      setDuplicatePhonePopup(
+        `Broj mobitela "${phone}" već postoji za korisnika "${existingUser.name}".`
+      );
+      return;
+    }
+
+    await addDoc(collection(db, "users"), {
+      name,
+      fullName: name,
+      phone,
+      active: true,
     });
-    
-    setNewUserName('');
-    setNewUserPhone('');
+
+    setNewUserName("");
+    setNewUserPhone("");
     fetchUsers();
   };
 
@@ -44,14 +71,15 @@ export default function UserManagement() {
 
   const handleDeleteUserConfirmed = async () => {
     if (!userToDelete) return;
-    await deleteDoc(doc(db, 'users', userToDelete.id));
+    await deleteDoc(doc(db, "users", userToDelete.id));
     setUserToDelete(null);
     fetchUsers();
   };
 
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.phone.includes(searchTerm)
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phone.includes(searchTerm)
   );
 
   return (
@@ -73,7 +101,9 @@ export default function UserManagement() {
           onChange={(e) => setNewUserPhone(e.target.value)}
           className="user-input"
         />
-        <button onClick={handleAddUser} className="add-user-button">Dodaj</button>
+        <button onClick={handleAddUser} className="add-user-button">
+          Dodaj
+        </button>
       </div>
 
       <div className="search-section">
@@ -93,7 +123,12 @@ export default function UserManagement() {
               <div className="user-name">{user.name}</div>
               <div className="user-phone">{user.phone}</div>
             </div>
-            <button onClick={() => confirmDeleteUser(user)} className="delete-user-button">Obriši</button>
+            <button
+              onClick={() => confirmDeleteUser(user)}
+              className="delete-user-button"
+            >
+              Obriši
+            </button>
           </div>
         ))}
       </div>
@@ -101,10 +136,42 @@ export default function UserManagement() {
       {userToDelete && (
         <div className="confirm-overlay">
           <div className="confirm-modal">
-            <p>Jesi li sigurna da želiš obrisati <strong>{userToDelete.name}</strong>?</p>
+            <p>
+              Jesi li sigurna da želiš obrisati{" "}
+              <strong>{userToDelete.name}</strong>?
+            </p>
             <div className="confirm-buttons">
-              <button onClick={handleDeleteUserConfirmed} className="confirm-yes">Da</button>
-              <button onClick={() => setUserToDelete(null)} className="confirm-no">Ne</button>
+              <button
+                onClick={handleDeleteUserConfirmed}
+                className="confirm-yes"
+              >
+                Da
+              </button>
+              <button
+                onClick={() => setUserToDelete(null)}
+                className="confirm-no"
+              >
+                Ne
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {duplicatePhonePopup && (
+        <div className="confirm-overlay">
+          <div className="confirm-modal">
+            <p>{duplicatePhonePopup}</p>
+            <div className="confirm-buttons">
+              <button
+                onClick={() => {
+                  setDuplicatePhonePopup(null);
+                  setNewUserName("");
+                  setNewUserPhone("");
+                }}
+                className="confirm-yes"
+              >
+                U redu
+              </button>
             </div>
           </div>
         </div>
