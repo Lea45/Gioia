@@ -88,3 +88,21 @@ button.active-tab {
   padding: 0.5rem 1rem;
   font-weight: bold;
 }
+
+.login-back-button {
+  background-color: #dcd6c8;
+  color: #4a4a4a;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 500;
+  margin-top: 0.8rem;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.2s ease;
+}
+
+.login-back-button:hover {
+  background-color: #cfc9bb;
+}

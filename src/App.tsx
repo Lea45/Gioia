@@ -12,7 +12,8 @@ type View = "home" | "client" | "clientDashboard" | "admin" | "adminDashboard";
 
 export default function App() {
   const [view, setView] = useState<View>("home");
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -56,51 +57,60 @@ export default function App() {
 
   const renderHome = () => (
     <>
-    <div className="app-wrapper" role="region" aria-labelledby="card-title">
-      <div className="card-container">
-        <div className="header">
-          <img
-            src={logo}
-            alt="Gioia Pilates Studio logo"
-            className="logo"
-            loading="lazy"
-          />
-          <p className="tagline">Dobrodošli u Gioia Reformer Pilates Studio</p>
+      <div className="app-wrapper" role="region" aria-labelledby="card-title">
+        <div className="card-container">
+          <div className="header">
+            <img
+              src={logo}
+              alt="Gioia Pilates Studio logo"
+              className="logo"
+              loading="lazy"
+            />
+            <p className="tagline">
+              Dobrodošli u Gioia Reformer Pilates Studio
+            </p>
+          </div>
+
+          <hr className="divider" />
+
+          <div className="button-grid">
+            <button
+              className="role-button"
+              onClick={() => handleSelectRole("client")}
+              aria-label="Prijava kao klijent"
+            >
+              <FaUser className="icon" />
+              Klijent
+            </button>
+            <button
+              className="role-button"
+              onClick={() => handleSelectRole("admin")}
+              aria-label="Prijava kao administrator"
+            >
+              <FaUserShield className="icon" />
+              Admin
+            </button>
+          </div>
+
+          {deferredPrompt && (
+            <button className="install-button" onClick={handleInstallClick}>
+              <FaArrowCircleDown style={{ marginRight: "8px" }} />
+              Instaliraj aplikaciju
+            </button>
+          )}
         </div>
-
-        <hr className="divider" />
-
-        <div className="button-grid">
-          <button
-            className="role-button"
-            onClick={() => handleSelectRole("client")}
-            aria-label="Prijava kao klijent"
-          >
-            <FaUser className="icon" />
-            Klijent
-          </button>
-          <button
-            className="role-button"
-            onClick={() => handleSelectRole("admin")}
-            aria-label="Prijava kao administrator"
-          >
-            <FaUserShield className="icon" />
-            Admin
-          </button>
-        </div>
-
-        {deferredPrompt && (
-  <button className="install-button" onClick={handleInstallClick}>
-    <FaArrowCircleDown style={{ marginRight: "8px" }} />
-    Instaliraj aplikaciju
-  </button>
-)}
       </div>
-    </div>
-    <footer className="app-footer">
-   <a href="https://www.lematech-digital.com" target="_blank" rel="noopener noreferrer">LeMatech-Digital</a> © 2025
-  </footer>
-</>
+      <footer className="app-footer">
+        <a
+          href="https://www.lematech-digital.com"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          LeMatech-Digital
+        </a>{" "}
+        © 2025
+      </footer>
+    </>
   );
 
   const renderClientLogin = () => (
@@ -109,7 +119,10 @@ export default function App() {
         <h2 id="client-login" className="title">
           Klijent prijava
         </h2>
-        <Login onLoginSuccess={handleClientLoginSuccess} />
+        <Login
+          onLoginSuccess={handleClientLoginSuccess}
+          onBackToHome={() => setView("home")}
+        />
       </div>
     </div>
   );
@@ -132,7 +145,10 @@ export default function App() {
           Ova sekcija je namijenjena samo za admina.
         </p>
 
-        <AdminLogin onAdminLoginSuccess={handleAdminLoginSuccess} />
+        <AdminLogin
+          onAdminLoginSuccess={handleAdminLoginSuccess}
+          onBackToHome={() => setView("home")}
+        />
       </div>
     </div>
   );

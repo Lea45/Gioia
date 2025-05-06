@@ -1,31 +1,35 @@
-import { useState, useEffect } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from './firebase'; // koristiš svoj postojeći firebase.ts
-import './login.css';
+import { useState, useEffect } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "./firebase"; // koristiš svoj postojeći firebase.ts
+import "./login.css";
 
 type AdminLoginProps = {
   onAdminLoginSuccess: () => void;
+  onBackToHome: () => void;
 };
 
-export default function AdminLogin({ onAdminLoginSuccess }: AdminLoginProps) {
-  const [codeInput, setCodeInput] = useState('');
-  const [adminCode, setAdminCode] = useState('');
-  const [status, setStatus] = useState('');
+export default function AdminLogin({
+  onAdminLoginSuccess,
+  onBackToHome,
+}: AdminLoginProps) {
+  const [codeInput, setCodeInput] = useState("");
+  const [adminCode, setAdminCode] = useState("");
+  const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchAdminCode = async () => {
       try {
-        const docRef = doc(db, 'adminLogin', 'adminCode');
+        const docRef = doc(db, "adminLogin", "adminCode");
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
           setAdminCode(docSnap.data().code);
         } else {
-          console.error('Nema admin koda u bazi!');
+          console.error("Nema admin koda u bazi!");
         }
       } catch (error) {
-        console.error('Greška kod dohvaćanja admin koda:', error);
+        console.error("Greška kod dohvaćanja admin koda:", error);
       }
     };
 
@@ -34,15 +38,15 @@ export default function AdminLogin({ onAdminLoginSuccess }: AdminLoginProps) {
 
   const handleLogin = () => {
     setLoading(true);
-    setStatus('');
+    setStatus("");
 
     setTimeout(() => {
       if (codeInput === adminCode) {
-        setStatus('✅ Uspješna prijava');
-        localStorage.setItem('admin', 'true');
+        setStatus("✅ Uspješna prijava");
+        localStorage.setItem("admin", "true");
         onAdminLoginSuccess();
       } else {
-        setStatus('⛔ Pogrešan kod');
+        setStatus("⛔ Pogrešan kod");
       }
       setLoading(false);
     }, 500);
@@ -51,21 +55,31 @@ export default function AdminLogin({ onAdminLoginSuccess }: AdminLoginProps) {
   return (
     <div className="login-container">
       <input
-        type="password"  // 👈 maskirano unos
+        type="password" // 👈 maskirano unos
         placeholder="Unesi admin kod"
         value={codeInput}
         onChange={(e) => {
           setCodeInput(e.target.value);
-          setStatus('');
+          setStatus("");
         }}
-        onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleLogin();
+        }}
         className="login-input"
       />
       <button onClick={handleLogin} className="login-button" disabled={loading}>
-        {loading ? 'Prijava...' : 'Prijavi se'}
+        {loading ? "Prijava..." : "Prijavi se"}
       </button>
+      <button onClick={onBackToHome} className="login-back-button">
+         Natrag na početnu
+      </button>
+
       {status && (
-        <p className={status.startsWith('✅') ? 'status-success' : 'status-error'}>
+        <p
+          className={
+            status.startsWith("✅") ? "status-success" : "status-error"
+          }
+        >
           {status}
         </p>
       )}

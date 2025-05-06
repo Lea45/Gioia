@@ -1,27 +1,30 @@
-import { useState } from 'react';
-import { db } from './firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import './login.css';
+import { useState } from "react";
+import { db } from "./firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import "./login.css";
 
 type LoginProps = {
   onLoginSuccess: () => void;
+  onBackToHome: () => void;
 };
 
-export default function Login({ onLoginSuccess }: LoginProps) {
-  const [phone, setPhone] = useState('');
-  const [status, setStatus] = useState('');
+
+export default function Login({ onLoginSuccess, onBackToHome }: LoginProps) {
+
+  const [phone, setPhone] = useState("");
+  const [status, setStatus] = useState("");
 
   const handleLogin = async () => {
     if (!phone.trim()) {
-      setStatus('⛔ Unesite broj telefona.');
+      setStatus("⛔ Unesite broj telefona.");
       return;
     }
 
     try {
       const q = query(
-        collection(db, 'users'),
-        where('phone', '==', phone),
-        where('active', '==', true)
+        collection(db, "users"),
+        where("phone", "==", phone),
+        where("active", "==", true)
       );
       const snap = await getDocs(q);
 
@@ -29,18 +32,18 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         const userDoc = snap.docs[0];
         const userData = userDoc.data();
 
-        localStorage.setItem('phone', phone);
-        localStorage.setItem('userId', userDoc.id);
-        localStorage.setItem('userName', userData.name); // <-- SPREMI I IME!!
+        localStorage.setItem("phone", phone);
+        localStorage.setItem("userId", userDoc.id);
+        localStorage.setItem("userName", userData.name); // <-- SPREMI I IME!!
 
-        setStatus('✅ Dobrodošao/la!');
+        setStatus("✅ Dobrodošao/la!");
         onLoginSuccess();
       } else {
-        setStatus('⛔ Nemaš pristup. Obrati se trenerici.');
+        setStatus("⛔ Nemaš pristup. Obrati se trenerici.");
       }
     } catch (error) {
-      console.error('Greška pri prijavi:', error);
-      setStatus('⛔ Greška pri prijavi. Pokušajte ponovno.');
+      console.error("Greška pri prijavi:", error);
+      setStatus("⛔ Greška pri prijavi. Pokušajte ponovno.");
     }
   };
 
@@ -56,8 +59,19 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       <button onClick={handleLogin} className="login-button">
         Prijavi se
       </button>
+      <button
+        onClick={onBackToHome}
+        className="login-back-button"
+      >
+         Natrag na početnu
+      </button>
+
       {status && (
-        <p className={`${status.startsWith('✅') ? 'status-success' : 'status-error'}`}>
+        <p
+          className={`${
+            status.startsWith("✅") ? "status-success" : "status-error"
+          }`}
+        >
           {status}
         </p>
       )}
