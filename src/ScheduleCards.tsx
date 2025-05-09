@@ -53,7 +53,6 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
   const [loading, setLoading] = useState(true);
   const [infoPopupMessage, setInfoPopupMessage] = useState<string | null>(null);
 
-
   const phone = localStorage.getItem("phone");
   const name = localStorage.getItem("userName");
 
@@ -159,57 +158,53 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     const status =
       session.bookedSlots < session.maxSlots ? "rezervirano" : "cekanje";
 
-      try {
-        const reservationRef = await addDoc(collection(db, "reservations"), {
-          phone,
-          name,
-          sessionId: session.id,
-          date: session.date,
-          time: session.time,
-          status,
-          createdAt: new Date(),
-          notified: false,
+    try {
+      const reservationRef = await addDoc(collection(db, "reservations"), {
+        phone,
+        name,
+        sessionId: session.id,
+        date: session.date,
+        time: session.time,
+        status,
+        createdAt: new Date(),
+        notified: false,
+      });
+
+      // ✅ Lokalno dodaj novu rezervaciju
+      const newReservation: Reservation = {
+        id: reservationRef.id,
+        phone,
+        name,
+        sessionId: session.id,
+        status,
+      };
+      setReservations((prev) => [...prev, newReservation]);
+
+      // ✅ Ako je rezervirano, lokalno ažuriraj bookedSlots
+      if (status === "rezervirano") {
+        await updateDoc(doc(db, "sessions", session.id), {
+          bookedSlots: session.bookedSlots + 1,
         });
-      
-        // ✅ Lokalno dodaj novu rezervaciju
-        const newReservation: Reservation = {
-          id: reservationRef.id,
-          phone,
-          name,
-          sessionId: session.id,
-          status,
-        };
-        setReservations((prev) => [...prev, newReservation]);
-      
-        // ✅ Ako je rezervirano, lokalno ažuriraj bookedSlots
-        if (status === "rezervirano") {
-          await updateDoc(doc(db, "sessions", session.id), {
-            bookedSlots: session.bookedSlots + 1,
-          });
-      
-          setSessions((prev) =>
-            prev.map((s) =>
-              s.id === session.id
-                ? { ...s, bookedSlots: s.bookedSlots + 1 }
-                : s
-            )
-          );
-        }
-      
-        // ✅ Prikaži obavijest
-        onShowPopup(
-          status === "rezervirano"
-            ? `✅ Rezervirali ste termin:\n${session.date}\n${session.time}`
-            : `🕐 Dodani ste na listu čekanja:\n${session.date}\n${session.time}`
+
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === session.id ? { ...s, bookedSlots: s.bookedSlots + 1 } : s
+          )
         );
-      
-        // ❌ Nema više potrebe za onReservationMade(); jer ne radimo refetch
-      
-      } catch (error) {
-        console.error("⛔ Greška pri upisu rezervacije:", error);
-        onShowPopup("⛔ Greška pri rezervaciji. Pokušajte ponovno.");
       }
-      
+
+      // ✅ Prikaži obavijest
+      onShowPopup(
+        status === "rezervirano"
+          ? `✅ Rezervirali ste termin:\n${session.date}\n${session.time}`
+          : `🕐 Dodani ste na listu čekanja:\n${session.date}\n${session.time}`
+      );
+
+      // ❌ Nema više potrebe za onReservationMade(); jer ne radimo refetch
+    } catch (error) {
+      console.error("⛔ Greška pri upisu rezervacije:", error);
+      onShowPopup("⛔ Greška pri rezervaciji. Pokušajte ponovno.");
+    }
   };
 
   const cancel = async (session: Session) => {
@@ -371,36 +366,67 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
 
                     {reserved ? (
                       <>
-                        <div className="status-tag status-rezervirano">
-                          <FaCheckCircle
-                            style={{
-                              marginRight: "6px",
-                              position: "relative",
-                              top: "3px",
-                            }}
-                          />
-                          Rezervirano
+                        <div
+                          className={`status-tag ${
+                            reserved.status === "rezervirano"
+                              ? "status-rezervirano"
+                              : "status-cekanje"
+                          }`}
+                        >
+                          {reserved.status === "rezervirano" ? (
+                            <>
+                              <FaCheckCircle
+                                style={{
+                                  marginRight: "6px",
+                                  position: "relative",
+                                  top: "3px",
+                                }}
+                              />
+                              Rezervirano
+                            </>
+                          ) : (
+                            <>
+                              <FaClock
+                                style={{
+                                  marginRight: "6px",
+                                  position: "relative",
+                                  top: "3px",
+                                }}
+                              />
+                              Čekanje
+                            </>
+                          )}
                         </div>
+
                         {(() => {
                           const now = new Date();
-
                           const [d, m, y] = s.date.split(".");
                           const dateISO = `${y}-${m.padStart(
                             2,
                             "0"
                           )}-${d.padStart(2, "0")}`;
-                          const startTime = s.time.split(" - ")[0];
-                          const sessionDateTime = new Date(
-                            `${dateISO}T${startTime}`
-                          );
+                          const startTime = s.time.split(" - ")[0].trim();
+                          const [hours, minutes] = startTime
+                            .split(":")
+                            .map(Number);
+                          const sessionDateTime = new Date(dateISO);
+                          sessionDateTime.setHours(hours, minutes, 0, 0);
 
-                          const timeDiffHours =
-                            (sessionDateTime.getTime() - now.getTime()) /
-                            (1000 * 60 * 60);
-
+                          const isToday =
+                            now.toDateString() ===
+                            sessionDateTime.toDateString();
                           const isPast =
                             sessionDateTime.getTime() < now.getTime();
-                          const canCancel = !isPast && timeDiffHours >= 2;
+
+                          let canCancel = true;
+                          if (isPast) {
+                            canCancel = false;
+                          } else if (isToday) {
+                            const timeDiffHours =
+                              (sessionDateTime.getTime() - now.getTime()) /
+                              (1000 * 60 * 60);
+                            canCancel = timeDiffHours >= 2;
+                          }
 
                           return (
                             <button
@@ -421,7 +447,11 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                                   top: "3px",
                                 }}
                               />
-                              {canCancel ? "Otkaži" : "Prekasno za otkazivanje"}
+                              {canCancel
+                                ? "Otkaži"
+                                : isPast
+                                ? "Termin je prošao"
+                                : "Prekasno za otkazivanje"}
                             </button>
                           );
                         })()}
