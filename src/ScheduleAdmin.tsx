@@ -492,32 +492,54 @@ export default function ScheduleAdmin() {
       )}
 
       {showModal && (
-  <div className="modal-overlay">
-    <div className="modal">
-      <p style={{ textAlign: "center", marginBottom: "1rem", whiteSpace: "pre-line" }}>
-        {showModal}
-      </p>
-      <button
-        style={{ display: "block", margin: "0 auto" }}
-        onClick={() => setShowModal(null)}
-      >
-        U redu
-      </button>
-    </div>
-  </div>
-)}
-
+        <div className="modal-overlay">
+          <div className="modal">
+            <p
+              style={{
+                textAlign: "center",
+                marginBottom: "1rem",
+                whiteSpace: "pre-line",
+              }}
+            >
+              {showModal}
+            </p>
+            <button
+              style={{ display: "block", margin: "0 auto" }}
+              onClick={() => setShowModal(null)}
+            >
+              U redu
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="sessions-list">
         {Object.entries(grouped)
           .sort((a, b) => {
-            const da = new Date(a[0].split(".").reverse().join("-"));
-            const db = new Date(b[0].split(".").reverse().join("-"));
-            return da.getTime() - db.getTime();
+            if (view === "template") {
+              const daniRedoslijed = [
+                "PONEDJELJAK",
+                "UTORAK",
+                "SRIJEDA",
+                "ČETVRTAK",
+                "PETAK",
+                "SUBOTA",
+                "NEDJELJA",
+              ];
+              return (
+                daniRedoslijed.indexOf(a[0]) - daniRedoslijed.indexOf(b[0])
+              );
+            } else {
+              const da = new Date(a[0].split(".").reverse().join("-"));
+              const db = new Date(b[0].split(".").reverse().join("-"));
+              return da.getTime() - db.getTime();
+            }
           })
+
           .map(([date, list]) => (
             <div key={date} className="session-group">
-              <h4>{formatDay(date)}</h4>
+              <h4>{view === "template" ? date : formatDay(date)}</h4>
+
               {[...list]
                 .sort((a, b) => {
                   const getMinutes = (time: string) => {
