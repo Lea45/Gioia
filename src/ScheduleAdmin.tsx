@@ -173,8 +173,8 @@ export default function ScheduleAdmin() {
     setLabelInput(label);
     await fetchSessions();
 
-    setToastMessage("✅ Raspored generiran prema odabranom tjednu");
-    setTimeout(() => setToastMessage(null), 3000);
+    setShowModal("✅ Raspored je uspješno generiran prema odabranom tjednu.");
+
     setView("draft");
   };
 
@@ -190,8 +190,8 @@ export default function ScheduleAdmin() {
     await Promise.all(
       draftTerms.map((term) => addDoc(collection(db, "sessions"), term))
     );
-    setToastMessage("✅ Novi tjedan objavljen");
-    setTimeout(() => setToastMessage(null), 3000);
+    setShowModal("✅ Novi tjedan je uspješno objavljen.");
+
     setView("sessions");
   };
 
@@ -490,6 +490,23 @@ export default function ScheduleAdmin() {
           </div>
         </div>
       )}
+
+      {showModal && (
+  <div className="modal-overlay">
+    <div className="modal">
+      <p style={{ textAlign: "center", marginBottom: "1rem", whiteSpace: "pre-line" }}>
+        {showModal}
+      </p>
+      <button
+        style={{ display: "block", margin: "0 auto" }}
+        onClick={() => setShowModal(null)}
+      >
+        U redu
+      </button>
+    </div>
+  </div>
+)}
+
 
       <div className="sessions-list">
         {Object.entries(grouped)
