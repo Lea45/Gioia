@@ -133,6 +133,20 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       return;
     }
 
+    const now = new Date();
+    const [d, m, y] = session.date.split(".");
+    const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    const startTime = session.time.split(" - ")[0].trim();
+
+    const [hours, minutes] = startTime.split(":").map(Number);
+    const sessionDateTime = new Date(dateISO);
+    sessionDateTime.setHours(hours, minutes, 0, 0);
+
+    if (sessionDateTime.getTime() < now.getTime()) {
+      setInfoPopupMessage("⛔ Termin je završio. Rezervacija nije moguća.");
+      return;
+    }
+
     const adminPhone = "0911529422"; // <-- ovdje ide broj za admina za vise rezervacija
 
     if (phone !== adminPhone) {
@@ -300,6 +314,14 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
             setConfirmSession(null);
           }}
           onCancel={() => setConfirmSession(null)}
+        />
+      )}
+
+      {infoPopupMessage && (
+        <ConfirmPopup
+          message={infoPopupMessage}
+          onCancel={() => setInfoPopupMessage(null)}
+          infoOnly
         />
       )}
 
