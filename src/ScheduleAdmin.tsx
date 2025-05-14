@@ -38,6 +38,8 @@ export default function ScheduleAdmin() {
   const [view, setView] = useState<"sessions" | "draft" | "template">(
     "sessions"
   );
+  const [reservations, setReservations] = useState<any[]>([]);
+
   const [labelInput, setLabelInput] = useState("");
   const [currentLabel, setCurrentLabel] = useState("");
   const [newTime, setNewTime] = useState("");
@@ -69,6 +71,9 @@ export default function ScheduleAdmin() {
       ...doc.data(),
     })) as Session[];
     setSessions(fetched.filter((s) => s.date));
+    const reservationsSnap = await getDocs(collection(db, "reservations"));
+    const allReservations = reservationsSnap.docs.map((d) => d.data());
+    setReservations(allReservations);
 
     if (view === "draft" || view === "sessions") {
       const metaDoc = await getDoc(
@@ -248,6 +253,10 @@ export default function ScheduleAdmin() {
     ];
     return dani[date.getDay()];
   };
+  const getBrojRezervacija = (sessionId: string) =>
+    reservations.filter(
+      (r) => r.sessionId === sessionId && r.status === "rezervirano"
+    ).length;
 
   const grouped: Record<string, Session[]> = sessions.reduce((acc, s) => {
     if (!acc[s.date]) acc[s.date] = [];
@@ -551,8 +560,9 @@ export default function ScheduleAdmin() {
                 .map((s) => (
                   <div key={s.id} className="session-item-admin">
                     <span>
-                      {s.time} ({s.bookedSlots}/{s.maxSlots})
+                      {s.time} ({getBrojRezervacija(s.id)}/{s.maxSlots})
                     </span>
+
                     <button
                       onClick={() =>
                         setConfirmDelete({

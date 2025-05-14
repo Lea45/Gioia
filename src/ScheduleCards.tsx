@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import "./ScheduleCards.css";
 import ConfirmPopup from "./ConfirmPopup";
+
 import {
   FaClock,
   FaUserFriends,
@@ -20,6 +21,54 @@ import {
   FaCalendarAlt,
 } from "react-icons/fa";
 import spinner from "./gears-spinner.svg";
+
+const sendWhatsAppMessage = async (rawPhone: string) => {
+  const normalized = rawPhone.startsWith("0")
+    ? "385" + rawPhone.slice(1)
+    : rawPhone;
+
+  try {
+    const response = await fetch(
+      "https://z3g8qx.api.infobip.com/whatsapp/1/message/template",
+      {
+        method: "POST",
+        headers: {
+          Authorization:
+            "App a0c43ce9d5d14a83e05b1d09e8088860-21c77bf5-0311-49e3-8d62-01c20e94b9f3",
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              from: "15557795075",
+              to: normalized,
+              messageId: "waitlist-" + Date.now(),
+              content: {
+                templateName: "waitlist_moved",
+                templateData: {
+                  body: {
+                    placeholders: [],
+                  },
+                },
+                language: "hr",
+              },
+            },
+          ],
+        }),
+      }
+    );
+
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("❌ WhatsApp greška:", data);
+    } else {
+      console.log("✅ WhatsApp poslana:", data);
+    }
+  } catch (err) {
+    console.error("❌ WhatsApp fetch greška:", err);
+  }
+};
 
 type Session = {
   id: string;
@@ -229,10 +278,47 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
 
     await deleteDoc(doc(db, "reservations", existing.id));
 
+    let bookedSlots = session.bookedSlots;
+    let netkoUletio = false;
+
     if (existing.status === "rezervirano") {
+      bookedSlots = Math.max(0, bookedSlots - 1);
+
+      // Provjera liste čekanja
+      const listaSnap = await getDocs(collection(db, "reservations"));
+      const listaCekanja: Reservation[] = listaSnap.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() } as Reservation))
+        .filter((r) => r.sessionId === session.id && r.status === "cekanje");
+
+      if (listaCekanja.length > 0) {
+        const prvi = listaCekanja[0];
+
+        await updateDoc(doc(db, "reservations", prvi.id), {
+          status: "rezervirano",
+        });
+
+        if (prvi.phone) {
+          await sendWhatsAppMessage(prvi.phone);
+        }
+
+        setReservations((prev) =>
+          prev.map((r) =>
+            r.id === prvi.id ? { ...r, status: "rezervirano" } : r
+          )
+        );
+
+        // Ako netko uskoči, broj ostaje isti
+        bookedSlots += 1;
+        netkoUletio = true;
+      }
+
       await updateDoc(doc(db, "sessions", session.id), {
-        bookedSlots: Math.max(0, session.bookedSlots - 1),
+        bookedSlots,
       });
+
+      setSessions((prev) =>
+        prev.map((s) => (s.id === session.id ? { ...s, bookedSlots } : s))
+      );
     }
 
     onShowPopup(

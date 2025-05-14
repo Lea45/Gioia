@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { db } from "./firebase";
 import { collection, getDocs } from "firebase/firestore";
 import "./StatusManagement.css";
-import { FaSyncAlt } from 'react-icons/fa';
+import { FaSyncAlt } from "react-icons/fa";
 import spinner from "./gears-spinner.svg";
 
 type Reservation = {
@@ -25,7 +25,9 @@ export default function StatusManagement() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
-  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -78,9 +80,11 @@ export default function StatusManagement() {
     const year = parseInt(parts[2], 10);
     const date = new Date(year, month, day);
     if (isNaN(date.getTime())) return "NEPOZNAT DAN";
-    return date.toLocaleDateString("hr-HR", {
-      weekday: "long",
-    }).toUpperCase();
+    return date
+      .toLocaleDateString("hr-HR", {
+        weekday: "long",
+      })
+      .toUpperCase();
   };
 
   const groupedSessions = sessions.reduce(
@@ -124,8 +128,7 @@ export default function StatusManagement() {
         ["ponedjeljak", "utorak", "srijeda", "četvrtak", "petak", "subota"].map(
           (weekday) => {
             const entry = Object.entries(groupedSessions).find(
-              ([date]) =>
-                formatWeekday(date).toLowerCase() === weekday
+              ([date]) => formatWeekday(date).toLowerCase() === weekday
             );
             if (!entry) return null;
             const [date] = entry;
@@ -143,13 +146,20 @@ export default function StatusManagement() {
 
                 {expandedDate === date && (
                   <div className="sessions-list">
-                    {[...new Map(groupedSessions[date].map((item) => [item.time, item])).values()]
+                    {[
+                      ...new Map(
+                        groupedSessions[date].map((item) => [item.time, item])
+                      ).values(),
+                    ]
                       .sort((a, b) => a.time.localeCompare(b.time))
                       .map((session) => {
                         const relatedReservations = reservations.filter(
-                          (r) => r.date === session.date && r.time === session.time
+                          (r) =>
+                            r.date === session.date && r.time === session.time
                         );
-                        const reservationCount = relatedReservations.length;
+                        const reservationCount = relatedReservations.filter(
+                          (r) => r.status === "rezervirano"
+                        ).length;
 
                         return (
                           <div key={session.id} className="session-item">
@@ -157,7 +167,9 @@ export default function StatusManagement() {
                               className="session-time"
                               onClick={() =>
                                 setExpandedSessionId(
-                                  expandedSessionId === session.id ? null : session.id
+                                  expandedSessionId === session.id
+                                    ? null
+                                    : session.id
                                 )
                               }
                             >
@@ -174,44 +186,72 @@ export default function StatusManagement() {
                             </div>
 
                             {expandedSessionId === session.id && (
-                            <div className="reservation-list">
-                            {reservationCount > 0 ? (
-                              <>
-                                <div style={{ fontWeight: "bold", marginBottom: "6px" }}>
-                                   Rezervirani:
-                                </div>
-                                {relatedReservations
-                                  .filter((res) => (res.status ?? "rezervirano") === "rezervirano")
-                                  .map((res) => (
-                                    <div key={res.id} className="reservation-item">
-                                      {res.name ? res.name : res.phone}{" "}
-                                    
-                                    </div>
-                                  ))}
-                          
-                                {relatedReservations.some((res) => (res.status ?? "rezervirano") === "cekanje") && (
+                              <div className="reservation-list">
+                                {relatedReservations.filter(
+                                  (r) => r.status === "rezervirano"
+                                ).length > 0 && (
                                   <>
-                                    <hr style={{ margin: "12px 0", border: "none", borderTop: "1px solid #ccc" }} />
-                                    <div style={{ fontWeight: "bold", marginBottom: "6px" }}>
-                                       Lista čekanja:
+                                    <div
+                                      style={{
+                                        fontWeight: "bold",
+                                        marginBottom: "6px",
+                                      }}
+                                    >
+                                      ✅ Rezervirani:
                                     </div>
                                     {relatedReservations
-                                      .filter((res) => (res.status ?? "rezervirano") === "cekanje")
+                                      .filter(
+                                        (res) => res.status === "rezervirano"
+                                      )
                                       .map((res) => (
-                                        <div key={res.id} className="reservation-item">
-                                          {res.name ? res.name : res.phone}{" "}
-                                          
+                                        <div
+                                          key={res.id}
+                                          className="reservation-item"
+                                        >
+                                          {res.name || res.phone}
                                         </div>
                                       ))}
                                   </>
                                 )}
-                              </>
-                            ) : (
-                              <div className="no-reservations">Nema rezervacija</div>
-                            )}
-                          </div>
-                          
-                          
+
+                                {relatedReservations.filter(
+                                  (r) => r.status === "cekanje"
+                                ).length > 0 && (
+                                  <>
+                                    <hr
+                                      style={{
+                                        margin: "12px 0",
+                                        border: "none",
+                                        borderTop: "1px solid #ccc",
+                                      }}
+                                    />
+                                    <div
+                                      style={{
+                                        fontWeight: "bold",
+                                        marginBottom: "6px",
+                                      }}
+                                    >
+                                      🕐 Lista čekanja:
+                                    </div>
+                                    {relatedReservations
+                                      .filter((res) => res.status === "cekanje")
+                                      .map((res) => (
+                                        <div
+                                          key={res.id}
+                                          className="reservation-item"
+                                        >
+                                          {res.name || res.phone}
+                                        </div>
+                                      ))}
+                                  </>
+                                )}
+
+                                {relatedReservations.length === 0 && (
+                                  <div className="no-reservations">
+                                    Nema rezervacija
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         );
