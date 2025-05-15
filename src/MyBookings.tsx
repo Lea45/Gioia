@@ -133,6 +133,37 @@ const MyBookings = ({
             bookedSlots: Math.max(0, currentBooked - 1),
           });
         }
+        // ⬆️ Ako je otkazano na vrijeme — vrati dolazak
+        const [d, m, y] = booking.date.split(".");
+        const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+        const startTime = booking.time.split(/[-–]/)[0].trim();
+        const [hours, minutes] = startTime.split(":").map(Number);
+        const sessionDateTime = new Date(dateISO);
+        sessionDateTime.setHours(hours, minutes, 0, 0);
+
+        const now = new Date();
+        const timeDiffHours =
+          (sessionDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+        const canCancel = timeDiffHours >= 2;
+
+        if (canCancel) {
+          try {
+            const userSnap = await getDocs(
+              query(
+                collection(db, "users"),
+                where("phone", "==", booking.phone)
+              )
+            );
+            if (!userSnap.empty) {
+              const userDoc = userSnap.docs[0];
+              const userRef = doc(db, "users", userDoc.id);
+              const current = userDoc.data().remainingVisits ?? 0;
+              await updateDoc(userRef, { remainingVisits: current + 1 });
+            }
+          } catch (err) {
+            console.error("❌ Greška pri vraćanju dolaska:", err);
+          }
+        }
       }
 
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
@@ -204,7 +235,6 @@ const MyBookings = ({
             }
 
             return (
-              
               <div className="booking-card" key={booking.id}>
                 <div className="booking-info">
                   <span>{booking.date}</span>
