@@ -5,6 +5,7 @@ import {
   addDoc,
   getDocs,
   deleteDoc,
+  updateDoc,
   doc,
   query,
   orderBy,
@@ -15,13 +16,39 @@ import {
 import "./UserManagement.css";
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<{ id: string; name: string; phone: string }[]>([]);
+  const [selectedUser, setSelectedUser] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [remainingVisits, setRemainingVisits] = useState<number>(0);
+  const [validUntil, setValidUntil] = useState<string>(""); // ISO string
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [existingVisits, setExistingVisits] = useState<number>(0);
+  const [additionalVisits, setAdditionalVisits] = useState<number>(0);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  interface User {
+    id: string;
+    name: string;
+    phone: string;
+    remainingVisits: number;
+    validUntil: string;
+  }
+
+  const [users, setUsers] = useState<User[]>([]);
+
   const [newUserName, setNewUserName] = useState("");
   const [newUserPhone, setNewUserPhone] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [userToDelete, setUserToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [newNotification, setNewNotification] = useState("");
-  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot | null>(null);
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot | null>(
+    null
+  );
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
@@ -31,6 +58,27 @@ export default function UserManagement() {
     fetchUsers();
   }, []);
 
+  const handleConfirmEntry = async () => {
+    if (!selectedUser) return;
+
+    const userRef = doc(db, "users", selectedUser.id);
+    const totalVisits = existingVisits + additionalVisits;
+
+    await updateDoc(userRef, {
+      remainingVisits: totalVisits,
+      validUntil,
+    });
+
+    setShowConfirm(false);
+    setSuccessMessage(
+      `Dodali ste ${additionalVisits} dolazaka za ${
+        selectedUser.name
+      }.\nVrijede do: ${formatDate(validUntil)}`
+    );
+
+    setShowSuccess(true);
+  };
+
   const fetchUsers = async () => {
     const q = query(collection(db, "users"), orderBy("name"), limit(PAGE_SIZE));
     const querySnapshot = await getDocs(q);
@@ -38,7 +86,10 @@ export default function UserManagement() {
       id: doc.id,
       name: doc.data().name,
       phone: doc.data().phone,
+      remainingVisits: doc.data().remainingVisits || 0,
+      validUntil: doc.data().validUntil || "",
     }));
+
     setUsers(usersList);
     setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
     setHasMore(querySnapshot.docs.length === PAGE_SIZE);
@@ -54,11 +105,14 @@ export default function UserManagement() {
       limit(PAGE_SIZE)
     );
     const querySnapshot = await getDocs(q);
-    const newUsers = querySnapshot.docs.map((doc) => ({
+    const newUsers: User[] = querySnapshot.docs.map((doc) => ({
       id: doc.id,
       name: doc.data().name,
       phone: doc.data().phone,
+      remainingVisits: doc.data().remainingVisits || 0,
+      validUntil: doc.data().validUntil || "",
     }));
+
     setUsers((prev) => [...prev, ...newUsers]);
     setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
     setHasMore(querySnapshot.docs.length === PAGE_SIZE);
@@ -99,6 +153,12 @@ export default function UserManagement() {
     if (!newNotification.trim()) return;
     alert(`Obavijest: ${newNotification.trim()}`);
     setNewNotification("");
+  };
+
+  const formatDate = (isoDate: string): string => {
+    if (!isoDate) return "";
+    const [year, month, day] = isoDate.split("-");
+    return `${day}.${month}.${year}.`;
   };
 
   return (
@@ -143,12 +203,25 @@ export default function UserManagement() {
                 <div className="user-name">{user.name}</div>
                 <div className="user-phone">{user.phone}</div>
               </div>
-              <button
-                onClick={() => confirmDeleteUser(user)}
-                className="delete-user-button"
-              >
-                Obriši
-              </button>
+              <div className="user-buttons">
+                <button
+                  onClick={() => confirmDeleteUser(user)}
+                  className="delete-user-button"
+                >
+                  Obriši
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedUser(user);
+                    setAdditionalVisits(0);
+                    setValidUntil(user.validUntil || "");
+                    setExistingVisits(user.remainingVisits || 0);
+                  }}
+                  className="details-button"
+                >
+                  Detalji
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -167,7 +240,8 @@ export default function UserManagement() {
           <div className="confirm-overlay">
             <div className="confirm-modal">
               <p>
-                Jesi li sigurna da želiš obrisati <strong>{userToDelete.name}</strong>?
+                Jesi li sigurna da želiš obrisati{" "}
+                <strong>{userToDelete.name}</strong>?
               </p>
               <div className="confirm-buttons">
                 <button
@@ -199,10 +273,91 @@ export default function UserManagement() {
             className="notification-input"
           />
           <button className="notify-button" onClick={handleNotify}>
-            Obavijesti
+            Posalji
           </button>
         </div>
       </div>
+      {selectedUser && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>{selectedUser.name}</h3>
+
+            <p>
+              Preostali dolasci: <strong>{existingVisits}</strong>
+            </p>
+            {validUntil && (
+              <p>
+                Vrijede do: <strong>{formatDate(validUntil)}</strong>
+              </p>
+            )}
+
+            <label>Dodaj dolaske:</label>
+            <input
+              type="number"
+              value={additionalVisits}
+              onChange={(e) => setAdditionalVisits(Number(e.target.value))}
+              min={0}
+            />
+
+            <label>Novi datum valjanosti:</label>
+            <input
+              type="date"
+              value={validUntil}
+              onChange={(e) => setValidUntil(e.target.value)}
+            />
+
+            <div className="modal-buttons">
+              <button onClick={() => setShowConfirm(true)}>Dodaj</button>
+              <button onClick={() => setSelectedUser(null)}>Odustani</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showConfirm && (
+        <div className="confirm-overlay">
+          <div className="confirm-modal">
+            <p>
+              Jesi li sigurna da želiš dodati {additionalVisits} dolazaka za{" "}
+              <strong>{selectedUser?.name}</strong>?
+            </p>
+
+            <div className="confirm-buttons">
+              <button onClick={handleConfirmEntry} className="confirm-yes">
+                Da
+              </button>
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="confirm-no"
+              >
+                Ne
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showSuccess && (
+        <div className="confirm-overlay">
+          <div className="confirm-modal">
+            <p>{successMessage}</p>
+            <div className="confirm-buttons">
+              <button
+                onClick={() => {
+                  setShowSuccess(false);
+                  setSelectedUser(null);
+                  setAdditionalVisits(0);
+                  setExistingVisits(0);
+                  setValidUntil("");
+                  fetchUsers();
+                }}
+                className="confirm-yes"
+              >
+                U redu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

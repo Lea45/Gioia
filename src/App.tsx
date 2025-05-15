@@ -7,7 +7,6 @@ import logo from "./assets/logo-login.png";
 import ClientDashboard from "./ClientDashboard";
 import "animate.css";
 import AdminDashboard from "./AdminDashboard";
-import TestWhatsApp from "./TestWhatsApp";
 
 type View = "home" | "client" | "clientDashboard" | "admin" | "adminDashboard";
 
@@ -161,7 +160,6 @@ export default function App() {
       {view === "clientDashboard" && <ClientDashboard />}
       {view === "admin" && renderAdminLogin()}
       {view === "adminDashboard" && <AdminDashboard />}
-      <TestWhatsApp />
     </>
   );
 }

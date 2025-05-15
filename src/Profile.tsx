@@ -24,6 +24,8 @@ export default function Profile() {
   const [phone, setPhone] = useState(storedPhone || "");
   const [name, setName] = useState("");
   const [docId, setDocId] = useState("");
+  const [remainingVisits, setRemainingVisits] = useState<number | null>(null);
+  const [validUntil, setValidUntil] = useState("");
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -37,6 +39,8 @@ export default function Profile() {
         const userData = userDoc.data();
         setName(userData.name || "");
         setDocId(userDoc.id);
+        setRemainingVisits(userData.remainingVisits ?? null);
+        setValidUntil(userData.validUntil ?? "");
       }
     };
 
@@ -46,6 +50,12 @@ export default function Profile() {
   const handleLogout = () => {
     localStorage.removeItem("phone");
     window.location.reload();
+  };
+
+  const formatDate = (iso: string) => {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-");
+    return `${d}.${m}.${y}.`;
   };
 
   return (
@@ -76,6 +86,20 @@ export default function Profile() {
           Odjava
         </button>
       </div>
+
+      {remainingVisits !== null && (
+        <div className="profile-card visits">
+          <label className="profile-label">🎟 Dolasci:</label>
+          <div>
+            Preostalih dolazaka: {remainingVisits}
+            {validUntil && (
+              <div style={{ fontSize: "0.9rem", color: "#555" }}>
+                Vrijede do: {formatDate(validUntil)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Prošli termini */}
       {(() => {
