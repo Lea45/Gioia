@@ -16,6 +16,38 @@ import {
 } from "firebase/firestore";
 import "./UserManagement.css";
 
+const sendAdminNoticeToPhone = async (phone: string, message: string) => {
+  const normalized = phone.replace(/^\+/, "").replace(/^0/, "385");
+
+  await fetch("https://z3g8qx.api.infobip.com/whatsapp/1/message/template", {
+    method: "POST",
+    headers: {
+      Authorization:
+        "App a0c43ce9d5d14a83e05b1d09e8088860-21c77bf5-0311-49e3-8d62-01c20e94b9f3",
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      messages: [
+        {
+          from: "15557795075",
+          to: normalized,
+          messageId: "admin-" + Date.now(),
+          content: {
+            templateName: "admin_notice",
+            templateData: {
+              body: {
+                placeholders: [message],
+              },
+            },
+            language: "hr",
+          },
+        },
+      ],
+    }),
+  });
+};
+
 export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
@@ -150,9 +182,28 @@ export default function UserManagement() {
       user.phone.includes(searchTerm)
   );
 
-  const handleNotify = () => {
-    if (!newNotification.trim()) return;
-    alert(`Obavijest: ${newNotification.trim()}`);
+  const handleNotify = async () => {
+    const trimmed = newNotification.trim();
+    if (!trimmed) return;
+
+    // 1. Spremi u Firestore (opcionalno)
+    await addDoc(collection(db, "announcements"), {
+      text: trimmed,
+      createdAt: new Date(),
+    });
+
+    // 2. Dohvati sve korisnike
+    const usersSnap = await getDocs(collection(db, "users"));
+    const users = usersSnap.docs.map((doc) => doc.data());
+
+    // 3. Pošalji svakom korisniku poruku
+    for (const user of users) {
+      if (user.phone) {
+        await sendAdminNoticeToPhone(user.phone, trimmed);
+      }
+    }
+
+    alert(`Obavijest poslana korisnicima: ${trimmed}`);
     setNewNotification("");
   };
 
