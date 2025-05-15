@@ -103,41 +103,46 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
   const [label, setLabel] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [infoPopupMessage, setInfoPopupMessage] = useState<string | null>(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalMessage, setInfoModalMessage] = useState("");
 
   const phone = localStorage.getItem("phone");
   const name = localStorage.getItem("userName");
+  const [initialLoad, setInitialLoad] = useState(true);
+
+  const fetchData = async () => {
+    setLoading(true);
+
+    const sessionsSnap = await getDocs(collection(db, "sessions"));
+    const reservationsSnap = await getDocs(collection(db, "reservations"));
+    const metaDoc = await getDoc(doc(db, "draftSchedule", "meta"));
+
+    const fetchedSessions = sessionsSnap.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Session[];
+
+    const fetchedReservations = reservationsSnap.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Reservation[];
+
+    setSessions(fetchedSessions);
+    setReservations(fetchedReservations);
+
+    if (metaDoc.exists()) {
+      const data = metaDoc.data();
+      if (data.label) setLabel(data.label);
+    }
+
+    setLoading(false);
+
+    setInitialLoad(false);
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true); // ⬅️ Dodano
-
-      const sessionsSnap = await getDocs(collection(db, "sessions"));
-      const reservationsSnap = await getDocs(collection(db, "reservations"));
-      const metaDoc = await getDoc(doc(db, "draftSchedule", "meta"));
-
-      const fetchedSessions = sessionsSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Session[];
-
-      const fetchedReservations = reservationsSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Reservation[];
-
-      setSessions(fetchedSessions);
-      setReservations(fetchedReservations);
-
-      if (metaDoc.exists()) {
-        const data = metaDoc.data();
-        if (data.label) setLabel(data.label);
-      }
-
-      setLoading(false); // ⬅️ Dodano
-    };
-
     fetchData();
-  }, []); // Pokreni useEffect SAMO jednom prilikom mountanja
+  }, []);
 
   const getDayName = (dateStr: string) => {
     const [day, month, year] = dateStr.split(".");
@@ -277,11 +282,12 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       }
 
       // ✅ Prikaži obavijest
-      onShowPopup(
+      setInfoModalMessage(
         status === "rezervirano"
           ? `✅ Rezervirali ste termin:\n${session.date}\n${session.time}`
           : `🕐 Dodani ste na listu čekanja:\n${session.date}\n${session.time}`
       );
+      setShowInfoModal(true);
 
       // ❌ Nema više potrebe za onReservationMade(); jer ne radimo refetch
     } catch (error) {
@@ -371,13 +377,13 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       }
     }
 
-    onShowPopup(
-      `❌ Otkazali ste termin za ${session.date} u vrijeme ${session.time}`
+    setInfoModalMessage(
+      `Otkazali ste termin: \n${session.date} \n${session.time}`
     );
-    onReservationMade();
+    setShowInfoModal(true);
   };
 
-  if (loading) {
+  if (loading && initialLoad) {
     return (
       <div
         style={{
@@ -453,19 +459,19 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
         />
       )}
 
-      {infoPopupMessage && (
+      {showInfoModal && (
         <ConfirmPopup
-          message={infoPopupMessage}
-          onCancel={() => setInfoPopupMessage(null)}
+          message={infoModalMessage}
+          onCancel={() => {
+            setShowInfoModal(false);
+            fetchData(); // 🔄 odmah osvježi sve
+          }}
           infoOnly
         />
       )}
 
       {sortedDates.map((date) => (
-        <div
-          key={date}
-          className="day-card animate__animated animate__fadeInUp animate__faster"
-        >
+        <div key={date} className="day-card">
           <button className="day-header" onClick={() => toggleDate(date)}>
             <span>{getDayName(date)}</span>
             <span
@@ -495,7 +501,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                 return (
                   <div
                     key={s.id}
-                    className="session-card animate__animated animate__zoomIn animate__faster"
+                    className="session-card"
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <div className="session-info">
