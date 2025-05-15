@@ -4,6 +4,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   deleteDoc,
   updateDoc,
   doc,
@@ -211,11 +212,15 @@ export default function UserManagement() {
                   Obriši
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    const userRef = doc(db, "users", user.id);
+                    const userSnap = await getDoc(userRef);
+                    const data = userSnap.data();
+
                     setSelectedUser(user);
                     setAdditionalVisits(0);
-                    setValidUntil(user.validUntil || "");
-                    setExistingVisits(user.remainingVisits || 0);
+                    setValidUntil(data?.validUntil || "");
+                    setExistingVisits(data?.remainingVisits ?? 0);
                   }}
                   className="details-button"
                 >
