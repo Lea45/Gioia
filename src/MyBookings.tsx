@@ -31,6 +31,8 @@ const MyBookings = ({
 }) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [currentLabel, setCurrentLabel] = useState("");
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalMessage, setInfoModalMessage] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [confirmCancelBooking, setConfirmCancelBooking] =
@@ -167,11 +169,11 @@ const MyBookings = ({
       }
 
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
-      onChanged(`❌ Otkazali ste termin:  ${booking.date}  ${booking.time}`);
 
-      setTimeout(() => {
-        onChanged("");
-      }, 3000);
+      setInfoModalMessage(
+        `Otkazali ste termin: \n${booking.date} \n${booking.time}`
+      );
+      setShowInfoModal(true);
     } catch (error) {
       console.error("Greška pri otkazivanju termina:", error);
     }
@@ -312,6 +314,14 @@ const MyBookings = ({
             setConfirmCancelBooking(null);
           }}
           onCancel={() => setConfirmCancelBooking(null)}
+        />
+      )}
+
+      {showInfoModal && (
+        <ConfirmPopup
+          message={infoModalMessage}
+          onCancel={() => setShowInfoModal(false)}
+          infoOnly
         />
       )}
     </div>
