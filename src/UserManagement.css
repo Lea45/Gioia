@@ -94,11 +94,14 @@
   background-color: #848b79;
   color: #ece5d1;
   border: none;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  border-radius: 6px;
+  padding: 0.8rem 1rem; /* veća visina da bude kao add-user-button */
+  font-size: 1rem; /* ujednači s .add-user-button */
+  border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.3s, transform 0.2s;
+  width: 100%;
+  max-width: 120px; /* prilagodi po potrebi */
+  text-align: center;
 }
 
 .delete-user-button:hover {
@@ -353,4 +356,25 @@
 .modal-buttons button:last-child:hover {
   background-color: #d6cfbc;
   transform: scale(1.05);
+}
+
+.user-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px; /* razmak između gumbi */
+}
+
+.details-button {
+  background-color: #f6f6f6;
+  color: #333;
+  border: none;
+  padding: 0.8rem 1rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  width: 100%;
+  max-width: 120px;
+  text-align: center;
 }
