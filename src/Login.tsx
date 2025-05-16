@@ -8,9 +8,7 @@ type LoginProps = {
   onBackToHome: () => void;
 };
 
-
 export default function Login({ onLoginSuccess, onBackToHome }: LoginProps) {
-
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState("");
 
@@ -51,7 +49,7 @@ export default function Login({ onLoginSuccess, onBackToHome }: LoginProps) {
     <div className="login-container">
       <input
         type="text"
-        placeholder="Unesi broj telefona"
+        placeholder="Unesi broj telefona (385)"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
         className="login-input"
@@ -59,11 +57,8 @@ export default function Login({ onLoginSuccess, onBackToHome }: LoginProps) {
       <button onClick={handleLogin} className="login-button">
         Prijavi se
       </button>
-      <button
-        onClick={onBackToHome}
-        className="login-back-button"
-      >
-         Natrag na početnu
+      <button onClick={onBackToHome} className="login-back-button">
+        Natrag na početnu
       </button>
 
       {status && (

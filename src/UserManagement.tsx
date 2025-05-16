@@ -60,6 +60,8 @@ export default function UserManagement() {
   const [additionalVisits, setAdditionalVisits] = useState<number>(0);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [showAddSuccess, setShowAddSuccess] = useState(false);
+  const [newlyAddedName, setNewlyAddedName] = useState("");
 
   interface User {
     id: string;
@@ -160,6 +162,9 @@ export default function UserManagement() {
       phone: newUserPhone.trim(),
       active: true,
     });
+
+    setNewlyAddedName(newUserName.trim());
+    setShowAddSuccess(true);
     setNewUserName("");
     setNewUserPhone("");
     fetchUsers();
@@ -412,6 +417,23 @@ export default function UserManagement() {
                   setValidUntil("");
                   fetchUsers();
                 }}
+                className="confirm-yes"
+              >
+                U redu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showAddSuccess && (
+        <div className="confirm-overlay">
+          <div className="confirm-modal">
+            <p>
+              Dodali ste <strong>{newlyAddedName}</strong>.
+            </p>
+            <div className="confirm-buttons">
+              <button
+                onClick={() => setShowAddSuccess(false)}
                 className="confirm-yes"
               >
                 U redu
