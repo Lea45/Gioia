@@ -24,11 +24,11 @@ type Booking = {
   status: "rezervirano" | "cekanje";
 };
 
-const MyBookings = ({
-  onChanged,
-}: {
+type MyBookingsProps = {
   onChanged: (message: string) => void;
-}) => {
+};
+
+const MyBookings = ({ onChanged }: MyBookingsProps) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [currentLabel, setCurrentLabel] = useState("");
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -97,7 +97,7 @@ const MyBookings = ({
     fetchAll();
   }, []);
 
-  const fetchBookings = async () => {
+  const fetchBokings = async () => {
     if (!phone) return;
     setLoading(true);
 
