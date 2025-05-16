@@ -125,18 +125,27 @@
 }
 
 .confirm-modal {
-  background-color: white;
+  background: #ece5d1;
   padding: 2rem;
   border-radius: 12px;
   text-align: center;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   animation: scaleIn 0.3s ease-out forwards;
-  max-width: 300px;
+  max-width: 400px;
+  width: 90%;
 }
 
 .confirm-modal p {
   margin-bottom: 1rem;
   color: #333;
+  font-size: 1.3rem;
+}
+
+.confirm-modal p strong {
+  margin-bottom: 1rem;
+  color: #333;
+  font-size: 1.5rem;
+  text-transform: uppercase;
 }
 
 .confirm-buttons {
@@ -155,6 +164,7 @@
   border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.3s, transform 0.2s;
+  width: 150px;
 }
 
 .confirm-yes:hover {

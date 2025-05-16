@@ -429,7 +429,8 @@ export default function UserManagement() {
         <div className="confirm-overlay">
           <div className="confirm-modal">
             <p>
-              Dodali ste <strong>{newlyAddedName}</strong>.
+              Dodali ste korisnika/cu:<br></br>{" "}
+              <strong>{newlyAddedName}</strong>
             </p>
             <div className="confirm-buttons">
               <button
