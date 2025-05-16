@@ -203,7 +203,9 @@ export default function UserManagement() {
       }
     }
 
-    alert(`Obavijest poslana korisnicima: ${trimmed}`);
+    setSuccessMessage(trimmed);
+
+    setShowSuccess(true);
     setNewNotification("");
   };
 
@@ -333,6 +335,7 @@ export default function UserManagement() {
           </button>
         </div>
       </div>
+
       {selectedUser && (
         <div className="modal-overlay">
           <div className="modal">
@@ -377,7 +380,6 @@ export default function UserManagement() {
               Jesi li sigurna da želiš dodati {additionalVisits} dolazaka za{" "}
               <strong>{selectedUser?.name}</strong>?
             </p>
-
             <div className="confirm-buttons">
               <button onClick={handleConfirmEntry} className="confirm-yes">
                 Da
@@ -392,10 +394,14 @@ export default function UserManagement() {
           </div>
         </div>
       )}
+
       {showSuccess && (
         <div className="confirm-overlay">
           <div className="confirm-modal">
-            <p>{successMessage}</p>
+            <p>
+              ✅ Obavijest je poslana korisnicima:
+              <br />"{successMessage}"
+            </p>
             <div className="confirm-buttons">
               <button
                 onClick={() => {
