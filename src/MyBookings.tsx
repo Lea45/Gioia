@@ -204,7 +204,7 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
           />
         </div>
       ) : bookings.length === 0 ? (
-        <p>Nemate nijedan aktivan termin.</p>
+        <p className="no-bookings-message">Nemate aktivnih termina.</p>
       ) : (
         <div className="bookings-list">
           {bookings.map((booking) => {

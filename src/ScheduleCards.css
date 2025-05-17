@@ -20,7 +20,7 @@ button:focus {
   background: var(--accent);
   border-radius: 12px;
   margin-bottom: 20px;
-  padding: 8px;
+  padding: 6px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
@@ -67,6 +67,23 @@ button:focus {
   font-size: 23px;
   color: var(--primary);
   border-bottom: #838a78;
+}
+
+@media (max-width: 400px) {
+  .session-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 18px;
+    color: var(--primary);
+    border-bottom: #838a78;
+  }
+  .session-time {
+    font-size: 0.95rem !important;
+  }
+  .session-time svg {
+    padding-top: 0.2rem;
+  }
 }
 
 .status-tag {

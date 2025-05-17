@@ -46,6 +46,18 @@
   margin-bottom: 0.5rem;
 }
 
+@media (max-width: 400px) {
+  .schedule-admin-container .tab-switcher {
+    gap: 0.8rem;
+  }
+
+  .schedule-admin-container .tab-switcher button {
+    min-width: 100px;
+    padding: 0.6rem 0.7rem;
+    font-size: 0.8rem;
+  }
+}
+
 .schedule-admin-container .tab-switcher button:disabled {
   background-color: #848b79;
   color: #ece5d1;

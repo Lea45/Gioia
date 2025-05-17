@@ -146,8 +146,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
 
   const getDayName = (dateStr: string) => {
     const [day, month, year] = dateStr.split(".");
-    const iso = `${year}-${month}-${day}`;
-    const date = new Date(iso);
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
     const dani = [
       "NEDJELJA",
       "PONEDJELJAK",
@@ -187,6 +186,19 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     if (!phone || !name) {
       onShowPopup("📱 Prijavite se.");
       return;
+    }
+
+    const userSnap = await getDocs(
+      query(collection(db, "users"), where("phone", "==", phone))
+    );
+    if (!userSnap.empty) {
+      const userDoc = userSnap.docs[0];
+      const current = userDoc.data().remainingVisits ?? 0;
+
+      if (current <= -5) {
+        onShowPopup("⛔ Nemate dovoljno dolazaka za rezervaciju.");
+        return;
+      }
     }
 
     const now = new Date();
