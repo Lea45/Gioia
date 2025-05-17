@@ -33,7 +33,6 @@
 @media (max-width: 400px) {
   .admin-dashboard .tab-buttons {
     gap: 0.6rem;
-    margin: 2rem 0;
     flex-wrap: nowrap;
   }
 

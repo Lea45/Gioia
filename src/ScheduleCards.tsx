@@ -215,7 +215,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       return;
     }
 
-    const adminPhone = "0911529422"; // <-- ovdje ide broj za admina za vise rezervacija
+    const adminPhone = "20181804"; // <-- admin rezervacije - vise u danu
 
     if (phone !== adminPhone) {
       const sameDayReservation = reservations.find(

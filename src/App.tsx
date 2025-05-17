@@ -3,7 +3,7 @@ import { FaUser, FaUserShield, FaArrowCircleDown } from "react-icons/fa";
 import Login from "./Login";
 import AdminLogin from "./AdminLogin";
 import "./App.css";
-import logo from "./assets/logo-login.png";
+import logo from "./assets/logo-login.webp";
 import ClientDashboard from "./ClientDashboard";
 import "animate.css";
 import AdminDashboard from "./AdminDashboard";
@@ -116,7 +116,7 @@ export default function App() {
   const renderClientLogin = () => (
     <div className="app-wrapper" role="region" aria-labelledby="client-login">
       <div className="card-container">
-        <h2 id="client-login" className="title">
+        <h2 id="client-login" className="title2">
           Klijent prijava
         </h2>
         <Login
@@ -130,7 +130,7 @@ export default function App() {
   const renderAdminLogin = () => (
     <div className="app-wrapper" role="region" aria-labelledby="admin-login">
       <div className="card-container">
-        <h2 id="admin-login" className="title">
+        <h2 id="admin-login" className="title2">
           Admin prijava
         </h2>
         <p

@@ -53,6 +53,10 @@ export default function UserManagement() {
     id: string;
     name: string;
   } | null>(null);
+  const [successType, setSuccessType] = useState<
+    "notifikacija" | "dolasci" | null
+  >(null);
+
   const [remainingVisits, setRemainingVisits] = useState<number>(0);
   const [validUntil, setValidUntil] = useState<string>(""); // ISO string
   const [showConfirm, setShowConfirm] = useState(false);
@@ -97,21 +101,23 @@ export default function UserManagement() {
     if (!selectedUser) return;
 
     const userRef = doc(db, "users", selectedUser.id);
-    const totalVisits = existingVisits + additionalVisits;
+    const totalVisits = Math.max(0, existingVisits + additionalVisits); // ne ide ispod 0
 
     await updateDoc(userRef, {
       remainingVisits: totalVisits,
       validUntil,
     });
 
-    setShowConfirm(false);
     setSuccessMessage(
-      `Dodali ste ${additionalVisits} dolazaka za ${
-        selectedUser.name
-      }.\nVrijede do: ${formatDate(validUntil)}`
+      `${additionalVisits >= 0 ? "Dodali" : "Oduzeli"} ste ${Math.abs(
+        additionalVisits
+      )} dolazaka za ${selectedUser.name}.\nVrijede do: ${formatDate(
+        validUntil
+      )}`
     );
-
+    setSuccessType("dolasci");
     setShowSuccess(true);
+    setShowConfirm(false);
   };
 
   const fetchUsers = async () => {
@@ -209,7 +215,7 @@ export default function UserManagement() {
     }
 
     setSuccessMessage(trimmed);
-
+    setSuccessType("notifikacija"); // <- DODANO OVDJE
     setShowSuccess(true);
     setNewNotification("");
   };
@@ -336,7 +342,7 @@ export default function UserManagement() {
             className="notification-input"
           />
           <button className="notify-button" onClick={handleNotify}>
-            Posalji
+            Pošalji
           </button>
         </div>
       </div>
@@ -360,7 +366,6 @@ export default function UserManagement() {
               type="number"
               value={additionalVisits}
               onChange={(e) => setAdditionalVisits(Number(e.target.value))}
-              min={0}
             />
 
             <label>Novi datum valjanosti:</label>
@@ -403,10 +408,15 @@ export default function UserManagement() {
       {showSuccess && (
         <div className="confirm-overlay">
           <div className="confirm-modal">
-            <p>
-              ✅ Obavijest je poslana korisnicima:
-              <br />"{successMessage}"
-            </p>
+            {successType === "notifikacija" ? (
+              <p>
+                ✅ Obavijest je poslana korisnicima:
+                <br />"{successMessage}"
+              </p>
+            ) : (
+              <p>✅ {successMessage}</p>
+            )}
+
             <div className="confirm-buttons">
               <button
                 onClick={() => {
@@ -429,8 +439,7 @@ export default function UserManagement() {
         <div className="confirm-overlay">
           <div className="confirm-modal">
             <p>
-              Dodali ste korisnika/cu:<br></br>{" "}
-              <strong>{newlyAddedName}</strong>
+              Dodali ste korisnika:<br></br> <strong>{newlyAddedName}</strong>
             </p>
             <div className="confirm-buttons">
               <button
