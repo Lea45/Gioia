@@ -81,13 +81,16 @@
 
 .user-name {
   font-weight: bold;
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: #848b79;
+  text-wrap: wrap;
+  text-align: left;
 }
 
 .user-phone {
   font-size: 0.9rem;
   color: #555;
+  text-align: left;
 }
 
 .delete-user-button {
@@ -189,7 +192,8 @@
 }
 
 .load-more-button {
-  margin: 1rem auto;
+  margin: 2rem auto;
+  margin-bottom: 1rem;
   display: block;
   padding: 0.8rem 1.5rem;
   background-color: #848b79;

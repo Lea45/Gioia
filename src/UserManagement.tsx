@@ -61,7 +61,7 @@ export default function UserManagement() {
   const [validUntil, setValidUntil] = useState<string>(""); // ISO string
   const [showConfirm, setShowConfirm] = useState(false);
   const [existingVisits, setExistingVisits] = useState<number>(0);
-  const [additionalVisits, setAdditionalVisits] = useState<number>(0);
+  const [additionalVisits, setAdditionalVisits] = useState<string>("");
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [showAddSuccess, setShowAddSuccess] = useState(false);
@@ -100,17 +100,18 @@ export default function UserManagement() {
   const handleConfirmEntry = async () => {
     if (!selectedUser) return;
 
-    const userRef = doc(db, "users", selectedUser.id);
-    const totalVisits = Math.max(0, existingVisits + additionalVisits); // ne ide ispod 0
+    const parsedVisits = Number(additionalVisits || "0");
+    const totalVisits = Math.max(0, existingVisits + parsedVisits);
 
+    const userRef = doc(db, "users", selectedUser.id);
     await updateDoc(userRef, {
       remainingVisits: totalVisits,
       validUntil,
     });
 
     setSuccessMessage(
-      `${additionalVisits >= 0 ? "Dodali" : "Oduzeli"} ste ${Math.abs(
-        additionalVisits
+      `${parsedVisits >= 0 ? "Dodali" : "Oduzeli"} ste ${Math.abs(
+        parsedVisits
       )} dolazaka za ${selectedUser.name}.\nVrijede do: ${formatDate(
         validUntil
       )}`
@@ -120,20 +121,28 @@ export default function UserManagement() {
     setShowConfirm(false);
   };
 
+  interface User {
+    id: string;
+    name: string;
+    phone: string;
+    remainingVisits: number;
+    validUntil: string;
+  }
+
+  const docToUser = (doc: any): User => ({
+    id: doc.id,
+    name: doc.data().name,
+    phone: doc.data().phone,
+    remainingVisits: doc.data().remainingVisits || 0,
+    validUntil: doc.data().validUntil || "",
+  });
+
   const fetchUsers = async () => {
     const q = query(collection(db, "users"), orderBy("name"), limit(PAGE_SIZE));
-    const querySnapshot = await getDocs(q);
-    const usersList = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      name: doc.data().name,
-      phone: doc.data().phone,
-      remainingVisits: doc.data().remainingVisits || 0,
-      validUntil: doc.data().validUntil || "",
-    }));
-
-    setUsers(usersList);
-    setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
-    setHasMore(querySnapshot.docs.length === PAGE_SIZE);
+    const snapshot = await getDocs(q);
+    setUsers(snapshot.docs.map(docToUser));
+    setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+    setHasMore(snapshot.docs.length === PAGE_SIZE);
   };
 
   const fetchMoreUsers = async () => {
@@ -145,20 +154,35 @@ export default function UserManagement() {
       startAfter(lastVisible),
       limit(PAGE_SIZE)
     );
-    const querySnapshot = await getDocs(q);
-    const newUsers: User[] = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      name: doc.data().name,
-      phone: doc.data().phone,
-      remainingVisits: doc.data().remainingVisits || 0,
-      validUntil: doc.data().validUntil || "",
-    }));
-
-    setUsers((prev) => [...prev, ...newUsers]);
-    setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
-    setHasMore(querySnapshot.docs.length === PAGE_SIZE);
+    const snapshot = await getDocs(q);
+    setUsers((prev) => [...prev, ...snapshot.docs.map(docToUser)]);
+    setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+    setHasMore(snapshot.docs.length === PAGE_SIZE);
     setLoadingMore(false);
   };
+
+  const searchUsers = async (term: string) => {
+    const q = query(collection(db, "users"), orderBy("name"));
+    const snapshot = await getDocs(q);
+    const allUsers = snapshot.docs.map(docToUser);
+
+    const filtered = allUsers.filter(
+      (user) =>
+        user.name.toLowerCase().includes(term.toLowerCase()) ||
+        user.phone.includes(term)
+    );
+
+    setUsers(filtered);
+    setHasMore(false);
+  };
+
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      searchUsers(searchTerm);
+    } else {
+      fetchUsers();
+    }
+  }, [searchTerm]);
 
   const handleAddUser = async () => {
     if (!newUserName.trim() || !newUserPhone.trim()) return;
@@ -282,7 +306,7 @@ export default function UserManagement() {
                     const data = userSnap.data();
 
                     setSelectedUser(user);
-                    setAdditionalVisits(0);
+                    setAdditionalVisits("");
                     setValidUntil(data?.validUntil || "");
                     setExistingVisits(data?.remainingVisits ?? 0);
                   }}
@@ -365,7 +389,8 @@ export default function UserManagement() {
             <input
               type="number"
               value={additionalVisits}
-              onChange={(e) => setAdditionalVisits(Number(e.target.value))}
+              onChange={(e) => setAdditionalVisits(e.target.value)}
+              step="1"
             />
 
             <label>Novi datum valjanosti:</label>
@@ -422,7 +447,7 @@ export default function UserManagement() {
                 onClick={() => {
                   setShowSuccess(false);
                   setSelectedUser(null);
-                  setAdditionalVisits(0);
+                  setAdditionalVisits("0");
                   setExistingVisits(0);
                   setValidUntil("");
                   fetchUsers();
