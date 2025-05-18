@@ -110,8 +110,8 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
   const name = localStorage.getItem("userName");
   const [initialLoad, setInitialLoad] = useState(true);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
 
     const sessionsSnap = await getDocs(collection(db, "sessions"));
     const reservationsSnap = await getDocs(collection(db, "reservations"));
@@ -135,13 +135,19 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       if (data.label) setLabel(data.label);
     }
 
-    setLoading(false);
+    if (showSpinner) setLoading(false);
 
     setInitialLoad(false);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(true); // prvo dohvaćanje s loading spinnerom
+
+    const interval = setInterval(() => {
+      fetchData(false); // tihi refresh
+    }, 20000); // 20 sekundi
+
+    return () => clearInterval(interval);
   }, []);
 
   const getDayName = (dateStr: string) => {
@@ -237,8 +243,26 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       return;
     }
 
+    const brojRezerviranih = reservations.filter(
+      (r) => r.sessionId === session.id && r.status === "rezervirano"
+    ).length;
+
+    // 📌 Ponovno provjeri broj rezervacija iz baze prije upisa
+    const latestSnap = await getDocs(
+      query(
+        collection(db, "reservations"),
+        where("sessionId", "==", session.id)
+      )
+    );
+    const latestRezervacije = latestSnap.docs.map(
+      (doc) => doc.data() as Reservation
+    );
+    const realBookedCount = latestRezervacije.filter(
+      (r) => r.status === "rezervirano"
+    ).length;
+
     const status =
-      session.bookedSlots < session.maxSlots ? "rezervirano" : "cekanje";
+      realBookedCount < session.maxSlots ? "rezervirano" : "cekanje";
 
     try {
       const reservationRef = await addDoc(collection(db, "reservations"), {
@@ -300,6 +324,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
           : `🕐 Dodani ste na listu čekanja:\n${session.date}\n${session.time}`
       );
       setShowInfoModal(true);
+      fetchData(false);
 
       // ❌ Nema više potrebe za onReservationMade(); jer ne radimo refetch
     } catch (error) {
@@ -394,6 +419,11 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     );
     setShowInfoModal(true);
   };
+
+  const getRezervacijaZaSession = (sessionId: string) =>
+    reservations.filter(
+      (r) => r.sessionId === sessionId && r.status === "rezervirano"
+    );
 
   if (loading && initialLoad) {
     return (
@@ -508,7 +538,8 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                 const reserved = reservations.find(
                   (r) => r.phone === phone && r.sessionId === s.id
                 );
-                const isFull = s.bookedSlots >= s.maxSlots;
+                const isFull =
+                  getRezervacijaZaSession(s.id).length >= s.maxSlots;
 
                 return (
                   <div
@@ -536,7 +567,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                             top: "3px",
                           }}
                         />
-                        {s.bookedSlots}/{s.maxSlots}
+                        {getRezervacijaZaSession(s.id).length}/{s.maxSlots}
                       </span>
                     </div>
 
