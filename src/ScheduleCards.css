@@ -180,3 +180,14 @@ button:focus {
   color: #444;
   white-space: nowrap;
 }
+
+.daily-note-client {
+  background-color: #ece5d1;
+  padding: 10px 14px;
+  border: #848b79;
+  border-radius: 10px;
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  color: #444;
+  margin-top: 5px;
+}

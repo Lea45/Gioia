@@ -109,6 +109,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
   const phone = localStorage.getItem("phone");
   const name = localStorage.getItem("userName");
   const [initialLoad, setInitialLoad] = useState(true);
+  const [dailyNotes, setDailyNotes] = useState<Record<string, string>>({});
 
   const fetchData = async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
@@ -116,6 +117,13 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     const sessionsSnap = await getDocs(collection(db, "sessions"));
     const reservationsSnap = await getDocs(collection(db, "reservations"));
     const metaDoc = await getDoc(doc(db, "draftSchedule", "meta"));
+
+    const notesSnap = await getDocs(collection(db, "sessionsNotes"));
+    const notes: Record<string, string> = {};
+    notesSnap.forEach((doc) => {
+      notes[doc.id] = doc.data().text;
+    });
+    setDailyNotes(notes);
 
     const fetchedSessions = sessionsSnap.docs.map((doc) => ({
       id: doc.id,
@@ -526,6 +534,12 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
               ▼
             </span>
           </button>
+
+          {dailyNotes[date] && (
+            <div className="daily-note-client">
+              <em>{dailyNotes[date]}</em>
+            </div>
+          )}
 
           <AnimatedCollapse isOpen={expandedDate === date}>
             {[

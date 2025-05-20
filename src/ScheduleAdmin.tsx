@@ -56,6 +56,16 @@ export default function ScheduleAdmin() {
   const [isLoading, setIsLoading] = useState(false);
   const [showMissingLabelModal, setShowMissingLabelModal] = useState(false);
   const [startDate, setStartDate] = useState<Date | null>(null);
+  const [dailyNotes, setDailyNotes] = useState<Record<string, string>>({});
+  const [noteModalDate, setNoteModalDate] = useState<string | null>(null);
+  const [noteInput, setNoteInput] = useState("");
+
+  const saveNoteForDay = async (date: string, text: string) => {
+    await setDoc(doc(db, "draftScheduleNotes", date), { text });
+    setDailyNotes((prev) => ({ ...prev, [date]: text }));
+    setNoteModalDate(null);
+    setNoteInput("");
+  };
 
   const fetchSessions = async () => {
     const source =
@@ -83,6 +93,15 @@ export default function ScheduleAdmin() {
         const data = metaDoc.data();
         if (data.label) setCurrentLabel(data.label);
       }
+    }
+
+    if (view === "draft") {
+      const notesSnap = await getDocs(collection(db, "draftScheduleNotes"));
+      const notes: Record<string, string> = {};
+      notesSnap.forEach((doc) => {
+        notes[doc.id] = doc.data().text;
+      });
+      setDailyNotes(notes);
     }
   };
 
@@ -188,6 +207,7 @@ export default function ScheduleAdmin() {
     const draftTerms = draftSnap.docs
       .filter((doc) => doc.id !== "meta")
       .map((doc) => doc.data());
+
     const currentSessions = await getDocs(collection(db, "sessions"));
     await Promise.all(
       currentSessions.docs.map((d) => deleteDoc(doc(db, "sessions", d.id)))
@@ -195,8 +215,24 @@ export default function ScheduleAdmin() {
     await Promise.all(
       draftTerms.map((term) => addDoc(collection(db, "sessions"), term))
     );
-    setShowModal("✅ Novi tjedan je uspješno objavljen.");
 
+    // 🔁 Kopiraj opise iz draftScheduleNotes u sessionsNotes
+    const notesSnap = await getDocs(collection(db, "draftScheduleNotes"));
+    const currentNotes = await getDocs(collection(db, "sessionsNotes"));
+
+    // Obrisi sve stare sessionsNotes
+    await Promise.all(
+      currentNotes.docs.map((d) => deleteDoc(doc(db, "sessionsNotes", d.id)))
+    );
+
+    // Dodaj nove
+    await Promise.all(
+      notesSnap.docs.map((d) =>
+        setDoc(doc(db, "sessionsNotes", d.id), { text: d.data().text })
+      )
+    );
+
+    setShowModal("✅ Novi tjedan je uspješno objavljen.");
     setView("sessions");
   };
 
@@ -522,6 +558,27 @@ export default function ScheduleAdmin() {
         </div>
       )}
 
+      {noteModalDate && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h4>Opis za {formatDay(noteModalDate)}</h4>
+            <textarea
+              value={noteInput}
+              onChange={(e) => setNoteInput(e.target.value)}
+              rows={4}
+              style={{ width: "100%", marginBottom: "1rem" }}
+            />
+            <button
+              onClick={() => saveNoteForDay(noteModalDate, noteInput)}
+              style={{ marginRight: "0.5rem" }}
+            >
+              Spremi
+            </button>
+            <button onClick={() => setNoteModalDate(null)}>Odustani</button>
+          </div>
+        </div>
+      )}
+
       <div className="sessions-list">
         {Object.entries(grouped)
           .sort((a, b) => {
@@ -548,6 +605,26 @@ export default function ScheduleAdmin() {
           .map(([date, list]) => (
             <div key={date} className="session-group">
               <h4>{view === "template" ? date : formatDay(date)}</h4>
+
+              {view === "draft" && (
+                <>
+                  <button
+                    className="add-button-small"
+                    style={{ marginBottom: "0.5rem" }}
+                    onClick={() => {
+                      setNoteModalDate(date);
+                      setNoteInput(dailyNotes[date] || "");
+                    }}
+                  >
+                    📝 Dodaj opis
+                  </button>
+                  {dailyNotes[date] && (
+                    <div className="daily-note-box">
+                      <em>{dailyNotes[date]}</em>
+                    </div>
+                  )}
+                </>
+              )}
 
               {[...list]
                 .sort((a, b) => {
