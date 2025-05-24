@@ -2,19 +2,19 @@
   padding: 1rem 2rem;
   max-width: 800px;
   margin: 2rem auto;
-  background-color: #ECE5D1;
+  background-color: #ece5d1;
   border-radius: 12px;
-  border: 2px solid #848B79;
+  border: 2px solid #848b79;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  font-family: 'Special Elite', serif;
+  font-family: "Special Elite", serif;
 }
 
 .status-management-container h2 {
   text-align: center;
   margin-bottom: 2rem;
-  color: #848B79;
+  color: #848b79;
   font-size: 2rem;
-  font-family: 'Dancing Script', cursive;
+  font-family: "Dancing Script", cursive;
 }
 
 .refresh-button-container {
@@ -28,30 +28,30 @@
   font-weight: 600;
   cursor: pointer;
   border-radius: 8px;
-  background-color: #848B79;
-  color: #ECE5D1;
+  background-color: #848b79;
+  color: #ece5d1;
   border: none;
   transition: background-color 0.3s, transform 0.2s;
 }
 
 .refresh-button:hover {
-  background-color: #6B8E23;
+  background-color: #6b8e23;
   transform: scale(1.05);
 }
 
 .date-card {
-  background-color: #ECE5D1;
+  background-color: #ece5d1;
   margin-bottom: 1.5rem;
   padding: 1rem;
   border-radius: 12px;
-  border: 1px solid #848B79;
+  border: 1px solid #848b79;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: background-color 0.3s, transform 0.2s;
 }
 
 .date-card:hover {
-  background-color: #ECE5D1;
+  background-color: #ece5d1;
   transform: translateY(-2px);
 }
 
@@ -62,7 +62,7 @@
 .date-text {
   font-size: 1.3rem;
   font-weight: bold;
-  color: #848B79;
+  color: #848b79;
 }
 
 .weekday-text {
@@ -80,10 +80,10 @@
 }
 
 .session-item {
-  background-color: #ECE5D1;
+  background-color: #ece5d1;
   padding: 0.8rem 1rem;
   border-radius: 8px;
-  border: 1px solid #848B79;
+  border: 1px solid #848b79;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   cursor: pointer;
   transition: background-color 0.3s, transform 0.2s;
@@ -96,7 +96,7 @@
 
 .session-time {
   font-size: 1.1rem;
-  color: #848B79;
+  color: #848b79;
   font-weight: 600;
 }
 
@@ -126,4 +126,26 @@
   font-style: italic;
   color: #999;
   font-size: 0.95rem;
+}
+
+.refund-button {
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 2px solid #848b79;
+  background-color: #ece5d1;
+  color: #848b79;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.refund-button:hover {
+  background-color: #d6cfbc;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.button-icon {
+  position: relative;
+  top: 3px;
 }

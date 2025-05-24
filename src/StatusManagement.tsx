@@ -1,9 +1,19 @@
 import { useState, useEffect } from "react";
 import { db } from "./firebase";
-import { collection, getDocs } from "firebase/firestore";
 import "./StatusManagement.css";
-import { FaSyncAlt } from "react-icons/fa";
+import { FaSyncAlt, FaUndoAlt } from "react-icons/fa";
 import spinner from "./gears-spinner.svg";
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  increment,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 
 type Reservation = {
   id: string;
@@ -13,6 +23,7 @@ type Reservation = {
   date: string;
   time: string;
   status: "rezervirano" | "cekanje";
+  refunded: boolean;
 };
 
 type Session = {
@@ -29,6 +40,9 @@ export default function StatusManagement() {
     null
   );
   const [loading, setLoading] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalMessage, setInfoModalMessage] = useState("");
 
   useEffect(() => {
     const loadAll = async () => {
@@ -60,6 +74,7 @@ export default function StatusManagement() {
       date: doc.data().date,
       time: doc.data().time,
       status: doc.data().status,
+      refunded: doc.data().refunded ?? false,
     }));
     setReservations(reservationList);
   };
@@ -96,6 +111,79 @@ export default function StatusManagement() {
     {}
   );
 
+  const handleRefundConfirmed = async () => {
+    try {
+      const now = new Date();
+
+      const waitlistToRefund = reservations.filter((res) => {
+        if (res.status !== "cekanje" || res.refunded === true) return false;
+
+        const [day, month, year] = res.date
+          .split(".")
+          .map((x) => parseInt(x, 10));
+        const [startHour] = res.time.split(" - ");
+        const [hour, minute] = startHour.split(":").map(Number);
+
+        const resDate = new Date(year, month - 1, day, hour, minute);
+        return resDate < now;
+      });
+
+      if (waitlistToRefund.length === 0) {
+        setInfoModalMessage("ℹ️ Nema rezervacija na čekanju za povrat.");
+        setShowInfoModal(true);
+        return;
+      }
+
+      for (const res of waitlistToRefund) {
+        const userQuery = query(
+          collection(db, "users"),
+          where("phone", "==", res.phone)
+        );
+        const userSnap = await getDocs(userQuery);
+
+        if (userSnap.empty) {
+          console.warn(`⚠️ Korisnik ${res.phone} nije pronađen u users.`);
+          continue;
+        }
+
+        const userDocRef = userSnap.docs[0].ref;
+
+        try {
+          await updateDoc(userDocRef, {
+            remainingVisits: increment(1),
+          });
+        } catch (err) {
+          console.error("❌ Greška pri update korisnika:", err);
+          continue;
+        }
+
+        try {
+          const resRef = doc(db, "reservations", res.id);
+          await updateDoc(resRef, {
+            refunded: true,
+          });
+        } catch (err) {
+          console.error("❌ Greška pri update rezervacije:", err);
+          continue;
+        }
+
+        console.log(`✔ Povrat za ${res.name || res.phone}`);
+      }
+
+      setInfoModalMessage(
+        "✔ Vraćeni su dolasci za sve korisnike s liste čekanja čiji su termini prošli."
+      );
+      setShowInfoModal(true);
+      refreshData();
+    } catch (error) {
+      console.error("Greška pri globalnom povratu:", error);
+      setInfoModalMessage("❌ Greška prilikom vraćanja dolazaka.");
+      setShowInfoModal(true);
+    } finally {
+      setShowConfirmModal(false);
+    }
+  };
+
   return (
     <div className="status-management-container">
       <h2>Status Termina</h2>
@@ -117,12 +205,70 @@ export default function StatusManagement() {
             />
           </div>
         ) : (
-          <button className="refresh-button" onClick={refreshData}>
-            <FaSyncAlt style={{ marginRight: "8px" }} />
-            Osvježi podatke
-          </button>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: "1rem",
+              flexWrap: "wrap",
+            }}
+          >
+            <button className="refresh-button" onClick={refreshData}>
+              <FaSyncAlt
+                className="button-icon"
+                style={{ marginRight: "8px" }}
+              />
+              Osvježi podatke
+            </button>
+            <button
+              className="refund-button"
+              onClick={() => setShowConfirmModal(true)}
+            >
+              <FaUndoAlt
+                className="button-icon"
+                style={{ marginRight: "8px" }}
+              />
+              Vrati dolaske
+            </button>
+          </div>
         )}
       </div>
+      {showConfirmModal && (
+        <div className="confirm-overlay">
+          <div className="confirm-modal">
+            <p>
+              Jeste li sigurni da želite vratiti dolaske za sve rezervacije na
+              čekanju kojima je prošao termin?
+            </p>
+            <div className="confirm-buttons">
+              <button onClick={handleRefundConfirmed} className="confirm-yes">
+                Da
+              </button>
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="confirm-no"
+              >
+                Ne
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showInfoModal && (
+        <div className="confirm-overlay">
+          <div className="confirm-modal">
+            <p style={{ whiteSpace: "pre-line" }}>{infoModalMessage}</p>
+            <div className="confirm-buttons">
+              <button
+                onClick={() => setShowInfoModal(false)}
+                className="confirm-yes"
+              >
+                U redu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!loading &&
         ["ponedjeljak", "utorak", "srijeda", "četvrtak", "petak", "subota"].map(

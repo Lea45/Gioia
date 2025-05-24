@@ -282,6 +282,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
         status,
         createdAt: new Date(),
         notified: false,
+        refunded: false,
       });
 
       // ✅ Lokalno dodaj novu rezervaciju

@@ -8,6 +8,8 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { onSnapshot } from "firebase/firestore";
+
 import {
   FaPhone,
   FaUser,
@@ -32,16 +34,16 @@ export default function Profile() {
       if (!phone) return;
 
       const q = query(collection(db, "users"), where("phone", "==", phone));
-      const snap = await getDocs(q);
-
-      if (!snap.empty) {
-        const userDoc = snap.docs[0];
-        const userData = userDoc.data();
-        setName(userData.name || "");
-        setDocId(userDoc.id);
-        setRemainingVisits(userData.remainingVisits ?? null);
-        setValidUntil(userData.validUntil ?? "");
-      }
+      onSnapshot(q, (snap) => {
+        if (!snap.empty) {
+          const userDoc = snap.docs[0];
+          const userData = userDoc.data();
+          setName(userData.name || "");
+          setDocId(userDoc.id);
+          setRemainingVisits(userData.remainingVisits ?? null);
+          setValidUntil(userData.validUntil ?? "");
+        }
+      });
     };
 
     fetchUser();
