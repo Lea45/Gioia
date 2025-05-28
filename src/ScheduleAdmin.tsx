@@ -57,7 +57,13 @@ export default function ScheduleAdmin() {
   const [showMissingLabelModal, setShowMissingLabelModal] = useState(false);
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [dailyNotes, setDailyNotes] = useState<Record<string, string>>({});
+  const [disabledDays, setDisabledDays] = useState<string[]>([]);
+
   const [noteModalDate, setNoteModalDate] = useState<string | null>(null);
+  const [confirmDisableDay, setConfirmDisableDay] = useState<string | null>(
+    null
+  );
+
   const [noteInput, setNoteInput] = useState("");
 
   const saveNoteForDay = async (date: string, text: string) => {
@@ -536,6 +542,32 @@ export default function ScheduleAdmin() {
         </div>
       )}
 
+      {confirmDisableDay && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <p>
+              Jesi li sigurna da želiš onemogućiti sve termine za dan:
+              <br />
+              <strong>{formatDay(confirmDisableDay)}</strong>?
+            </p>
+            <button
+              onClick={() => {
+                setDisabledDays([...disabledDays, confirmDisableDay]);
+                setConfirmDisableDay(null);
+              }}
+              style={{
+                marginRight: "0.5rem",
+                backgroundColor: "#e74c3c",
+                color: "white",
+              }}
+            >
+              Da, onemogući
+            </button>
+            <button onClick={() => setConfirmDisableDay(null)}>Odustani</button>
+          </div>
+        </div>
+      )}
+
       {showModal && (
         <div className="modal-overlay">
           <div className="modal">
@@ -601,114 +633,140 @@ export default function ScheduleAdmin() {
               return da.getTime() - db.getTime();
             }
           })
+          .map(([date, list]) => {
+            if (view === "draft" && disabledDays.includes(date)) return null;
+            return (
+              <div key={date} className="session-group">
+                <h4>{view === "template" ? date : formatDay(date)}</h4>
 
-          .map(([date, list]) => (
-            <div key={date} className="session-group">
-              <h4>{view === "template" ? date : formatDay(date)}</h4>
-
-              {view === "draft" && (
-                <>
-                  <button
-                    className="add-button-small"
-                    style={{ marginBottom: "0.5rem" }}
-                    onClick={() => {
-                      setNoteModalDate(date);
-                      setNoteInput(dailyNotes[date] || "");
-                    }}
-                  >
-                    📝 Dodaj opis
-                  </button>
-                  {dailyNotes[date] && (
-                    <div className="daily-note-box">
-                      <em>{dailyNotes[date]}</em>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {[...list]
-                .sort((a, b) => {
-                  const getMinutes = (time: string) => {
-                    const [h, m] = time.split(" - ")[0].split(":").map(Number);
-                    return h * 60 + m;
-                  };
-                  return getMinutes(a.time) - getMinutes(b.time);
-                })
-                .map((s) => (
-                  <div key={s.id} className="session-item-admin">
-                    <span>
-                      {s.time} ({getBrojRezervacija(s.id)}/{s.maxSlots})
-                    </span>
-
+                {view === "draft" && (
+                  <>
                     <button
-                      onClick={() =>
-                        setConfirmDelete({
-                          id: s.id,
-                          date: s.date,
-                          time: s.time,
-                        })
-                      }
+                      className="add-button-small"
+                      style={{ marginBottom: "0.5rem" }}
+                      onClick={() => {
+                        setNoteModalDate(date);
+                        setNoteInput(dailyNotes[date] || "");
+                      }}
                     >
-                      Obriši
+                      📝 Dodaj opis
                     </button>
-                  </div>
-                ))}
-              {(view === "draft" ||
-                view === "template" ||
-                view === "sessions") && (
-                <>
-                  <button
-                    className="add-button-small"
-                    onClick={() => setShowModal(date)}
-                    style={{ marginTop: "0.5rem" }}
-                  >
-                    <FaPlusCircle style={{ marginRight: "0.4rem" }} />
-                    Dodaj termin
-                  </button>
+                    <button
+                      className="add-button-small"
+                      style={{
+                        marginBottom: "0.5rem",
+                        backgroundColor: "#e74c3c",
+                        color: "white",
+                      }}
+                      onClick={() => {
+                        if (!disabledDays.includes(date)) {
+                          setConfirmDisableDay(date);
+                        }
+                      }}
+                    >
+                      {disabledDays.includes(date)
+                        ? "♻️ Vrati dan"
+                        : "🚫 Onemogući dan"}
+                    </button>
 
-                  {showModal === date && (
-                    <div className="modal-overlay">
-                      <div className="modal">
-                        <h4>Dodaj termin za {formatDay(date)}</h4>
-                        <input
-                          type="text"
-                          placeholder="08:00 - 09:00"
-                          value={newTime}
-                          onChange={(e) => setNewTime(e.target.value)}
-                          style={{
-                            display: "block",
-                            margin: "0.5rem 0",
-                            padding: "0.4rem",
-                          }}
-                        />
-                        <input
-                          type="number"
-                          min={1}
-                          placeholder="Broj mjesta"
-                          value={newSlots}
-                          onChange={(e) => setNewSlots(Number(e.target.value))}
-                          style={{
-                            display: "block",
-                            marginBottom: "0.5rem",
-                            padding: "0.4rem",
-                          }}
-                        />
-                        <button
-                          onClick={() => addSession(date)}
-                          style={{ marginRight: "0.5rem" }}
-                        >
-                          Spremi
-                        </button>
-                        <button onClick={() => setShowModal(null)}>
-                          Odustani
-                        </button>
+                    {dailyNotes[date] && (
+                      <div className="daily-note-box">
+                        <em>{dailyNotes[date]}</em>
                       </div>
+                    )}
+                  </>
+                )}
+
+                {[...list]
+                  .sort((a, b) => {
+                    const getMinutes = (time: string) => {
+                      const [h, m] = time
+                        .split(" - ")[0]
+                        .split(":")
+                        .map(Number);
+                      return h * 60 + m;
+                    };
+                    return getMinutes(a.time) - getMinutes(b.time);
+                  })
+                  .map((s) => (
+                    <div key={s.id} className="session-item-admin">
+                      <span>
+                        {s.time} ({getBrojRezervacija(s.id)}/{s.maxSlots})
+                      </span>
+
+                      <button
+                        onClick={() =>
+                          setConfirmDelete({
+                            id: s.id,
+                            date: s.date,
+                            time: s.time,
+                          })
+                        }
+                      >
+                        Obriši
+                      </button>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
+                  ))}
+
+                {(view === "draft" ||
+                  view === "template" ||
+                  view === "sessions") && (
+                  <>
+                    <button
+                      className="add-button-small"
+                      onClick={() => setShowModal(date)}
+                      style={{ marginTop: "0.5rem" }}
+                    >
+                      <FaPlusCircle style={{ marginRight: "0.4rem" }} />
+                      Dodaj termin
+                    </button>
+
+                    {showModal === date && (
+                      <div className="modal-overlay">
+                        <div className="modal">
+                          <h4>Dodaj termin za {formatDay(date)}</h4>
+                          <input
+                            type="text"
+                            placeholder="08:00 - 09:00"
+                            value={newTime}
+                            onChange={(e) => setNewTime(e.target.value)}
+                            style={{
+                              display: "block",
+                              margin: "0.5rem 0",
+                              padding: "0.4rem",
+                            }}
+                          />
+                          <input
+                            type="number"
+                            min={1}
+                            placeholder="Broj mjesta"
+                            value={newSlots}
+                            onChange={(e) =>
+                              setNewSlots(Number(e.target.value))
+                            }
+                            style={{
+                              display: "block",
+                              marginBottom: "0.5rem",
+                              padding: "0.4rem",
+                            }}
+                          />
+                          <button
+                            onClick={() => addSession(date)}
+                            style={{ marginRight: "0.5rem" }}
+                          >
+                            Spremi
+                          </button>
+                          <button onClick={() => setShowModal(null)}>
+                            Odustani
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
       </div>
     </div>
   );

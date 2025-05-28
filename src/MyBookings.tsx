@@ -166,6 +166,21 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
             console.error("❌ Greška pri vraćanju dolaska:", err);
           }
         }
+      } else if (booking.status === "cekanje") {
+        // Korisnik otkazuje s liste čekanja → vrati dolazak
+        try {
+          const userSnap = await getDocs(
+            query(collection(db, "users"), where("phone", "==", booking.phone))
+          );
+          if (!userSnap.empty) {
+            const userDoc = userSnap.docs[0];
+            const userRef = doc(db, "users", userDoc.id);
+            const current = userDoc.data().remainingVisits ?? 0;
+            await updateDoc(userRef, { remainingVisits: current + 1 });
+          }
+        } catch (err) {
+          console.error("❌ Greška pri vraćanju dolaska s liste čekanja:", err);
+        }
       }
 
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));

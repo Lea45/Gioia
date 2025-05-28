@@ -209,7 +209,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       const userDoc = userSnap.docs[0];
       const current = userDoc.data().remainingVisits ?? 0;
 
-      if (current <= -5) {
+      if (current <= -2) {
         onShowPopup("⛔ Nemate dovoljno dolazaka za rezervaciju.");
         return;
       }
@@ -317,7 +317,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
           const userDoc = userSnap.docs[0];
           const userRef = doc(db, "users", userDoc.id);
           const current = userDoc.data().remainingVisits ?? 0;
-          const updated = Math.max(-5, current - 1);
+          const updated = Math.max(-2, current - 1);
           await updateDoc(userRef, { remainingVisits: updated });
         } else {
           console.warn("❗Korisnik nije pronađen za telefon:", phone);
@@ -420,6 +420,21 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
         } catch (err) {
           console.error("❌ Greška pri vraćanju dolaska:", err);
         }
+      }
+    } else if (existing.status === "cekanje") {
+      // Korisnik otkazuje s liste čekanja → vrati dolazak
+      try {
+        const userSnap = await getDocs(
+          query(collection(db, "users"), where("phone", "==", phone))
+        );
+        if (!userSnap.empty) {
+          const userDoc = userSnap.docs[0];
+          const userRef = doc(db, "users", userDoc.id);
+          const current = userDoc.data().remainingVisits ?? 0;
+          await updateDoc(userRef, { remainingVisits: current + 1 });
+        }
+      } catch (err) {
+        console.error("❌ Greška pri vraćanju dolaska s liste čekanja:", err);
       }
     }
 
