@@ -12,6 +12,9 @@ import { db } from "./firebase";
 import ConfirmPopup from "./ConfirmPopup";
 import "./MyBookings.css";
 import spinner from "./gears-spinner.svg";
+import { runTransaction } from "firebase/firestore";
+import { sendWhatsAppMessage } from "./ScheduleCards"; // ako je tamo exportan
+
 import { FaCheckCircle, FaClock, FaTimesCircle } from "react-icons/fa";
 
 type Booking = {
@@ -115,82 +118,91 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
   };
 
   const cancelBooking = async (booking: Booking) => {
+    const [d, m, y] = booking.date.split(".");
+    const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    const rawTime = booking.time.split(/[-–]/)[0].trim();
+    const [hours, minutes] = rawTime.split(":").map(Number);
+    const sessionDateTime = new Date(dateISO);
+    sessionDateTime.setHours(hours, minutes, 0, 0);
+
+    const now = new Date();
+    const timeDiffHours =
+      (sessionDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const canCancel = timeDiffHours >= 2;
+
+    let promotedPhone: string | null = null;
+
     try {
-      await deleteDoc(doc(db, "reservations", booking.id));
+      await runTransaction(db, async (t) => {
+        const sessionRef = doc(db, "sessions", booking.sessionId);
+        const sessionSnap = await t.get(sessionRef);
+        const sessionData = sessionSnap.data();
 
-      if (booking.status === "rezervirano") {
-        const sessionSnap = await getDocs(
-          query(
-            collection(db, "sessions"),
-            where("__name__", "==", booking.sessionId)
-          )
-        );
-        const sessionDoc = sessionSnap.docs[0];
-        if (sessionDoc) {
-          const sessionData = sessionDoc.data();
-          const currentBooked = sessionData.bookedSlots || 0;
-          const sessionRef = doc(db, "sessions", booking.sessionId);
+        if (!sessionSnap.exists()) throw new Error("Session ne postoji.");
+        if (!sessionData) throw new Error("SessionData je prazan.");
 
-          await updateDoc(sessionRef, {
-            bookedSlots: Math.max(0, currentBooked - 1),
-          });
-        }
-        // ⬆️ Ako je otkazano na vrijeme — vrati dolazak
-        const [d, m, y] = booking.date.split(".");
-        const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-        const startTime = booking.time.split(/[-–]/)[0].trim();
-        const [hours, minutes] = startTime.split(":").map(Number);
-        const sessionDateTime = new Date(dateISO);
-        sessionDateTime.setHours(hours, minutes, 0, 0);
+        t.delete(doc(db, "reservations", booking.id));
 
-        const now = new Date();
-        const timeDiffHours =
-          (sessionDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-        const canCancel = timeDiffHours >= 2;
+        let newBooked = sessionData.bookedSlots ?? 0;
 
-        if (canCancel) {
-          try {
-            const userSnap = await getDocs(
-              query(
-                collection(db, "users"),
-                where("phone", "==", booking.phone)
-              )
-            );
-            if (!userSnap.empty) {
-              const userDoc = userSnap.docs[0];
-              const userRef = doc(db, "users", userDoc.id);
-              const current = userDoc.data().remainingVisits ?? 0;
-              await updateDoc(userRef, { remainingVisits: current + 1 });
-            }
-          } catch (err) {
-            console.error("❌ Greška pri vraćanju dolaska:", err);
-          }
-        }
-      } else if (booking.status === "cekanje") {
-        // Korisnik otkazuje s liste čekanja → vrati dolazak
-        try {
-          const userSnap = await getDocs(
-            query(collection(db, "users"), where("phone", "==", booking.phone))
+        if (booking.status === "rezervirano") {
+          newBooked = Math.max(0, newBooked - 1);
+
+          const waitSnap = await getDocs(
+            query(
+              collection(db, "reservations"),
+              where("sessionId", "==", booking.sessionId),
+              where("status", "==", "cekanje")
+            )
           );
-          if (!userSnap.empty) {
-            const userDoc = userSnap.docs[0];
-            const userRef = doc(db, "users", userDoc.id);
-            const current = userDoc.data().remainingVisits ?? 0;
-            await updateDoc(userRef, { remainingVisits: current + 1 });
+
+          const waitlist = waitSnap.docs
+            .map((doc) => {
+              const data = doc.data();
+              return {
+                id: doc.id,
+                phone: data.phone,
+                createdAt: data.createdAt?.toDate?.() ?? new Date(0),
+              };
+            })
+            .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+          if (waitlist.length > 0) {
+            const next = waitlist[0];
+            const nextRef = doc(db, "reservations", next.id);
+            t.update(nextRef, { status: "rezervirano" });
+            promotedPhone = next.phone;
+            newBooked += 1;
           }
-        } catch (err) {
-          console.error("❌ Greška pri vraćanju dolaska s liste čekanja:", err);
+        }
+
+        t.update(sessionRef, { bookedSlots: newBooked });
+      });
+
+      if (promotedPhone) {
+        await sendWhatsAppMessage(promotedPhone);
+      }
+
+      // Vrati dolazak ako je otkazano na vrijeme
+      if (canCancel) {
+        const userSnap = await getDocs(
+          query(collection(db, "users"), where("phone", "==", booking.phone))
+        );
+        if (!userSnap.empty) {
+          const userDoc = userSnap.docs[0];
+          const userRef = doc(db, "users", userDoc.id);
+          const current = userDoc.data().remainingVisits ?? 0;
+          await updateDoc(userRef, { remainingVisits: current + 1 });
         }
       }
 
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
-
       setInfoModalMessage(
-        `Otkazali ste termin: \n${booking.date} \n${booking.time}`
+        `Otkazali ste termin:\n${booking.date}\n${booking.time}`
       );
       setShowInfoModal(true);
-    } catch (error) {
-      console.error("Greška pri otkazivanju termina:", error);
+    } catch (err) {
+      console.error("❌ Greška pri otkazivanju:", err);
     }
   };
 

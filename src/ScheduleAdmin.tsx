@@ -551,9 +551,27 @@ export default function ScheduleAdmin() {
               <strong>{formatDay(confirmDisableDay)}</strong>?
             </p>
             <button
-              onClick={() => {
-                setDisabledDays([...disabledDays, confirmDisableDay]);
+              onClick={async () => {
+                if (!confirmDisableDay) return;
+
+                const source =
+                  view === "template"
+                    ? "defaultSchedule"
+                    : view === "draft"
+                    ? "draftSchedule"
+                    : "sessions";
+
+                const snapshot = await getDocs(collection(db, source));
+                const sessionsZaDan = snapshot.docs.filter(
+                  (doc) => doc.data().date === confirmDisableDay
+                );
+
+                await Promise.all(
+                  sessionsZaDan.map((doc) => deleteDoc(doc.ref))
+                );
+
                 setConfirmDisableDay(null);
+                await fetchSessions();
               }}
               style={{
                 marginRight: "0.5rem",
