@@ -101,7 +101,8 @@ export default function UserManagement() {
     if (!selectedUser) return;
 
     const parsedVisits = Number(additionalVisits || "0");
-    const totalVisits = Math.max(0, existingVisits + parsedVisits);
+    // Dopuštamo minimalno -2
+    const totalVisits = Math.max(-2, existingVisits + parsedVisits);
 
     const userRef = doc(db, "users", selectedUser.id);
     await updateDoc(userRef, {
@@ -112,10 +113,9 @@ export default function UserManagement() {
     setSuccessMessage(
       `${parsedVisits >= 0 ? "Dodali" : "Oduzeli"} ste ${Math.abs(
         parsedVisits
-      )} dolazaka za ${selectedUser.name}.\nVrijede do: ${formatDate(
-        validUntil
-      )}`
+      )} dolazaka za ${selectedUser.name}...\n`
     );
+
     setSuccessType("dolasci");
     setShowSuccess(true);
     setShowConfirm(false);
@@ -412,9 +412,11 @@ export default function UserManagement() {
         <div className="confirm-overlay">
           <div className="confirm-modal">
             <p>
-              Jesi li sigurna da želiš dodati {additionalVisits} dolazaka za{" "}
+              Jesi li sigurna da želiš primijeniti promjenu od{" "}
+              {additionalVisits} na broj dolazaka za{" "}
               <strong>{selectedUser?.name}</strong>?
             </p>
+
             <div className="confirm-buttons">
               <button onClick={handleConfirmEntry} className="confirm-yes">
                 Da
