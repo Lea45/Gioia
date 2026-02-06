@@ -15,7 +15,7 @@ import spinner from "./gears-spinner.svg";
 import { runTransaction } from "firebase/firestore";
 import { sendWhatsAppMessage } from "./ScheduleCards"; // ako je tamo exportan
 
-import { FaCheckCircle, FaClock, FaTimesCircle, FaFolderOpen, FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { FaCheckCircle, FaClock, FaTimesCircle, FaFolderOpen } from "react-icons/fa";
 
 type Booking = {
   id: string;
@@ -335,18 +335,30 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
         <div className="past-bookings-section">
           <button
             className="past-bookings-toggle"
-            onClick={() => setShowPastBookings(!showPastBookings)}
+            onClick={() => setShowPastBookings(true)}
           >
             <FaFolderOpen style={{ marginRight: "8px" }} />
             Evidencija dolazaka ({pastBookings.length})
-            {showPastBookings ? (
-              <FaChevronUp style={{ marginLeft: "8px" }} />
-            ) : (
-              <FaChevronDown style={{ marginLeft: "8px" }} />
-            )}
           </button>
+        </div>
+      )}
 
-          {showPastBookings && (
+      {/* Modal za evidenciju dolazaka */}
+      {showPastBookings && (
+        <div className="past-bookings-overlay" onClick={() => setShowPastBookings(false)}>
+          <div className="past-bookings-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="past-bookings-modal-header">
+              <h3>
+                <FaFolderOpen style={{ marginRight: "8px" }} />
+                Evidencija dolazaka
+              </h3>
+              <button
+                className="past-bookings-close"
+                onClick={() => setShowPastBookings(false)}
+              >
+                &times;
+              </button>
+            </div>
             <div className="past-bookings-list">
               {pastBookings.map((booking) => (
                 <div className="past-booking-card" key={booking.id}>
@@ -363,7 +375,7 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
       )}
 
