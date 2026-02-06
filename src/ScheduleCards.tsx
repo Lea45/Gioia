@@ -93,6 +93,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
   const name = localStorage.getItem("userName");
   const [initialLoad, setInitialLoad] = useState(true);
   const [dailyNotes, setDailyNotes] = useState<Record<string, string>>({});
+  const [reservingSessionId, setReservingSessionId] = useState<string | null>(null);
 
   const fetchData = async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
@@ -243,7 +244,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       }
     }
 
-    // Check if already registered for this specific session
+    // Check if already registered for this specific session (local check)
     const already = reservations.find(
       (r) => r.sessionId === session.id && r.phone === phone
     );
@@ -251,6 +252,12 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       onShowPopup("⛔ Već ste prijavljeni.");
       return;
     }
+
+    // Prevent double-click
+    if (reservingSessionId === session.id) {
+      return;
+    }
+    setReservingSessionId(session.id);
 
     try {
       const {
@@ -266,6 +273,19 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
           }
 
           const sessionData = sessionDoc.data() as Session;
+
+          // Check if user already has reservation for this session (database check)
+          const userExistingRes = await getDocs(
+            query(
+              collection(db, "reservations"),
+              where("sessionId", "==", session.id),
+              where("phone", "==", phone)
+            )
+          );
+
+          if (!userExistingRes.empty) {
+            throw new Error("ALREADY_RESERVED");
+          }
 
           // Determine status based on FRESH data from transaction
           // Dohvati broj postojećih rezervacija iz baze (unutar transakcije)
@@ -348,9 +368,15 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       );
       setShowInfoModal(true);
       fetchData(false);
-    } catch (error) {
-      console.error("⛔ Greška pri upisu rezervacije:", error);
-      onShowPopup("⛔ Greška pri rezervaciji. Pokušajte ponovno.");
+    } catch (error: any) {
+      if (error?.message === "ALREADY_RESERVED") {
+        onShowPopup("⛔ Već ste prijavljeni na ovaj termin.");
+      } else {
+        console.error("⛔ Greška pri upisu rezervacije:", error);
+        onShowPopup("⛔ Greška pri rezervaciji. Pokušajte ponovno.");
+      }
+    } finally {
+      setReservingSessionId(null);
     }
   };
 
@@ -637,8 +663,13 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                       <button
                         className={`reserve-button ${isFull ? "full" : ""}`}
                         onClick={() => setConfirmSession(s)}
+                        disabled={reservingSessionId === s.id}
                       >
-                        {isFull ? "Lista čekanja" : "Rezerviraj"}
+                        {reservingSessionId === s.id
+                          ? "Učitavanje..."
+                          : isFull
+                          ? "Lista čekanja"
+                          : "Rezerviraj"}
                       </button>
                     )}
                   </div>
