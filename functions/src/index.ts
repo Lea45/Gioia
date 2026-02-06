@@ -1,28 +1,28 @@
-import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
+import { onRequest } from "firebase-functions/v2/https";
+import { initializeApp } from "firebase-admin/app";
 
-admin.initializeApp();
+initializeApp();
 
-// Infobip konfiguracija - postavlja se kroz Firebase environment
-// firebase functions:config:set infobip.api_key="VAŠ_KLJUČ" infobip.base_url="z3g8qx.api.infobip.com"
+// Infobip konfiguracija kroz environment variables
+const INFOBIP_API_KEY = process.env.INFOBIP_API_KEY;
+const INFOBIP_BASE_URL = process.env.INFOBIP_BASE_URL || "z3g8qx.api.infobip.com";
 
-interface SendWhatsAppData {
-  phone: string;
-  templateName?: string;
-}
+export const sendWhatsAppNotification = onRequest(
+  {
+    region: "europe-west1",
+    cors: ["https://gioia-app.web.app", "https://gioia-app.firebaseapp.com"]
+  },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
 
-export const sendWhatsAppNotification = functions
-  .region("europe-west1")
-  .https.onCall(async (data: SendWhatsAppData, context) => {
-    // Provjeri je li korisnik autentificiran (opcionalno)
-    // if (!context.auth) {
-    //   throw new functions.https.HttpsError("unauthenticated", "Morate biti prijavljeni.");
-    // }
-
-    const { phone, templateName = "waitlist_moved" } = data;
+    const { phone, templateName = "waitlist_moved" } = req.body;
 
     if (!phone) {
-      throw new functions.https.HttpsError("invalid-argument", "Broj telefona je obavezan.");
+      res.status(400).json({ error: "Broj telefona je obavezan." });
+      return;
     }
 
     // Normaliziraj broj telefona
@@ -31,14 +31,13 @@ export const sendWhatsAppNotification = functions
       normalized = "385" + normalized.slice(1);
     }
 
-    // Dohvati Infobip konfiguraciju
-    const config = functions.config();
-    const apiKey = config.infobip?.api_key;
-    const baseUrl = config.infobip?.base_url || "z3g8qx.api.infobip.com";
+    const apiKey = INFOBIP_API_KEY;
+    const baseUrl = INFOBIP_BASE_URL;
 
     if (!apiKey) {
       console.error("Infobip API ključ nije konfiguriran!");
-      throw new functions.https.HttpsError("failed-precondition", "Infobip nije konfiguriran.");
+      res.status(500).json({ error: "Infobip nije konfiguriran." });
+      return;
     }
 
     try {
@@ -73,25 +72,36 @@ export const sendWhatsAppNotification = functions
 
       if (!response.ok) {
         console.error("Infobip greška:", result);
-        throw new functions.https.HttpsError("internal", "Greška pri slanju poruke.");
+        res.status(500).json({ error: "Greška pri slanju poruke." });
+        return;
       }
 
       console.log("WhatsApp uspješno poslana na:", normalized);
-      return { success: true, messageId: result.messages?.[0]?.messageId };
+      res.json({ success: true, messageId: result.messages?.[0]?.messageId });
     } catch (error) {
       console.error("Greška pri slanju WhatsApp-a:", error);
-      throw new functions.https.HttpsError("internal", "Greška pri slanju poruke.");
+      res.status(500).json({ error: "Greška pri slanju poruke." });
     }
-  });
+  }
+);
 
 // Funkcija za admin obavijesti
-export const sendAdminNotification = functions
-  .region("europe-west1")
-  .https.onCall(async (data: { phone: string; message: string }, context) => {
-    const { phone, message } = data;
+export const sendAdminNotification = onRequest(
+  {
+    region: "europe-west1",
+    cors: ["https://gioia-app.web.app", "https://gioia-app.firebaseapp.com"]
+  },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    const { phone, message } = req.body;
 
     if (!phone || !message) {
-      throw new functions.https.HttpsError("invalid-argument", "Broj i poruka su obavezni.");
+      res.status(400).json({ error: "Broj i poruka su obavezni." });
+      return;
     }
 
     let normalized = phone.replace(/\s+/g, "").replace(/^\+/, "");
@@ -99,12 +109,12 @@ export const sendAdminNotification = functions
       normalized = "385" + normalized.slice(1);
     }
 
-    const config = functions.config();
-    const apiKey = config.infobip?.api_key;
-    const baseUrl = config.infobip?.base_url || "z3g8qx.api.infobip.com";
+    const apiKey = INFOBIP_API_KEY;
+    const baseUrl = INFOBIP_BASE_URL;
 
     if (!apiKey) {
-      throw new functions.https.HttpsError("failed-precondition", "Infobip nije konfiguriran.");
+      res.status(500).json({ error: "Infobip nije konfiguriran." });
+      return;
     }
 
     try {
@@ -139,12 +149,14 @@ export const sendAdminNotification = functions
 
       if (!response.ok) {
         console.error("Infobip greška:", result);
-        throw new functions.https.HttpsError("internal", "Greška pri slanju poruke.");
+        res.status(500).json({ error: "Greška pri slanju poruke." });
+        return;
       }
 
-      return { success: true };
+      res.json({ success: true });
     } catch (error) {
       console.error("Greška pri slanju:", error);
-      throw new functions.https.HttpsError("internal", "Greška pri slanju poruke.");
+      res.status(500).json({ error: "Greška pri slanju poruke." });
     }
-  });
+  }
+);

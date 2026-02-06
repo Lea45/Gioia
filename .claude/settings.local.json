@@ -6,7 +6,17 @@
       "Bash(npm install)",
       "Bash(firebase login:list:*)",
       "Bash(firebase projects:list:*)",
-      "Bash(firebase logout:*)"
+      "Bash(firebase logout:*)",
+      "Bash(firebase functions:config:get:*)",
+      "Bash(firebase functions:config:set:*)",
+      "Bash(firebase experiments:enable:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(firebase functions:delete:*)",
+      "Bash(npm install:*)",
+      "Bash(firebase functions:list:*)",
+      "Bash(ls:*)",
+      "Bash(gcloud builds log:*)",
+      "Bash(firebase login:*)"
     ]
   }
 }

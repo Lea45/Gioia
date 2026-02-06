@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import AnimatedCollapse from "./AnimatedCollapse";
 import { db } from "./firebase";
 import { runTransaction } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
 
 import {
   collection,
@@ -33,13 +32,24 @@ import {
 import spinner from "./gears-spinner.svg";
 
 // Koristi Firebase Function za slanje WhatsApp poruka (API ključ je siguran na serveru)
-const functions = getFunctions(undefined, "europe-west1");
+const FUNCTION_URL = "/api/sendWhatsAppNotification";
 
 export const sendWhatsAppMessage = async (rawPhone: string) => {
   try {
-    const sendNotification = httpsCallable(functions, "sendWhatsAppNotification");
-    const result = await sendNotification({ phone: rawPhone, templateName: "waitlist_moved" });
-    console.log("✅ WhatsApp poslana:", result.data);
+    const response = await fetch(FUNCTION_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ phone: rawPhone, templateName: "waitlist_moved" }),
+    });
+
+    const result = await response.json();
+    if (response.ok) {
+      console.log("✅ WhatsApp poslana:", result);
+    } else {
+      console.error("❌ WhatsApp greška:", result);
+    }
   } catch (err) {
     console.error("❌ WhatsApp greška:", err);
   }

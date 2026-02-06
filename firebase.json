@@ -8,6 +8,20 @@
     ],
     "rewrites": [
       {
+        "source": "/api/sendWhatsAppNotification",
+        "function": {
+          "functionId": "sendWhatsAppNotification",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/api/sendAdminNotification",
+        "function": {
+          "functionId": "sendAdminNotification",
+          "region": "europe-west1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
@@ -15,6 +29,6 @@
   },
   "functions": {
     "source": "functions",
-    "runtime": "nodejs18"
+    "runtime": "nodejs22"
   }
 }

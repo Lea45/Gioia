@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaUser, FaUserShield, FaArrowCircleDown } from "react-icons/fa";
+import { signInAnonymously } from "firebase/auth";
+import { auth } from "./firebase";
 import Login from "./Login";
 import AdminLogin from "./AdminLogin";
 import "./App.css";
@@ -14,6 +16,13 @@ export default function App() {
   const [view, setView] = useState<View>("home");
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
+
+  // Anonimna prijava za Firebase Auth (potrebno za Cloud Functions)
+  useEffect(() => {
+    signInAnonymously(auth).catch((error) => {
+      console.error("Greška anonimne prijave:", error);
+    });
+  }, []);
 
   useEffect(() => {
     const handler = (e: Event) => {

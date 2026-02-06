@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 import {
   collection,
   addDoc,
@@ -14,16 +14,33 @@ import {
   startAfter,
   QueryDocumentSnapshot,
 } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import "./UserManagement.css";
 
 // Koristi Firebase Function za slanje admin obavijesti (API ključ je siguran na serveru)
-const functions = getFunctions(undefined, "europe-west1");
+const ADMIN_FUNCTION_URL = "/api/sendAdminNotification";
 
 const sendAdminNoticeToPhone = async (phone: string, message: string) => {
   try {
-    const sendNotification = httpsCallable(functions, "sendAdminNotification");
-    await sendNotification({ phone, message });
+    const user = auth.currentUser;
+    if (!user) {
+      console.error("❌ Korisnik nije prijavljen");
+      return;
+    }
+    const token = await user.getIdToken();
+
+    const response = await fetch(ADMIN_FUNCTION_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ phone, message }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      console.error("❌ Admin obavijest greška:", result);
+    }
   } catch (err) {
     console.error("❌ Admin obavijest greška:", err);
   }
