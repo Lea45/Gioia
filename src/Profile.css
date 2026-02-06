@@ -21,6 +21,8 @@
   border-radius: 12px;
   border: 1px solid #ddd;
   margin-bottom: 16px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .profile-label {
@@ -137,24 +139,28 @@
 .profile-card.visits .profile-label {
   color: #838a78;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 /* PIN section */
 .profile-pin-row {
   display: flex;
-  gap: 8px;
+  gap: 2px;
   align-items: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .profile-pin-row input {
   flex: 1;
+  min-width: 0;
   padding: 10px;
   border-radius: 8px;
   border: 1px solid #ccc;
   font-size: 1rem;
   letter-spacing: 4px;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .profile-pin-toggle {
@@ -180,7 +186,7 @@
 
 .profile-pin-save {
   flex: 1;
-  min-width: 110px;
+  min-width: 0;
   padding: 10px;
   background-color: #838a78;
   color: #fff;
@@ -191,6 +197,7 @@
   cursor: pointer;
   transition: background-color 0.2s;
   box-shadow: none;
+  box-sizing: border-box;
 }
 
 .profile-pin-save:hover:not(:disabled) {

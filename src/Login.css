@@ -16,7 +16,7 @@
   background-color: #fff;
   color: var(--primary);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-
+  font-family: Georgia, 'Times New Roman', Times, serif;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .login-input::placeholder {
@@ -135,8 +135,8 @@ button.active-tab {
 
 /* PIN input — visually looks like a PIN code */
 .login-input.pin-input {
-  letter-spacing: 6px;
-  text-align: center;
+  
+  text-align: left;
 }
 
 .login-button:disabled {

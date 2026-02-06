@@ -402,3 +402,63 @@
   max-width: 120px;
   text-align: center;
 }
+
+/* Detalji modal poboljšanja */
+.details-modal {
+  text-align: left;
+}
+
+.details-modal h3 {
+  text-align: center;
+  border-bottom: 2px solid #848b79;
+  padding-bottom: 0.8rem;
+  margin-bottom: 1.2rem;
+  font-family: "Times New Roman", Times, serif;
+}
+
+.details-info-section {
+  background-color: #f5f0e3;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1.2rem;
+  border: 1px solid #d6cfbc;
+}
+
+.details-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0;
+  border-bottom: 1px dashed #d6cfbc;
+}
+
+.details-info-row:last-child {
+  border-bottom: none;
+}
+
+.details-info-label {
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.details-info-value {
+  font-weight: bold;
+  color: #848b79;
+  font-size: 1.1rem;
+}
+
+.details-edit-section {
+  background-color: #e8e2d0;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid #d6cfbc;
+}
+
+.details-edit-section label {
+  margin-top: 0.5rem;
+}
+
+.details-edit-section label:first-child {
+  margin-top: 0;
+}

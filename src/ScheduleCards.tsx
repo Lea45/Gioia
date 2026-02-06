@@ -208,7 +208,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      if (current <= -2 || (validUntilDate && validUntilDate < today)) {
+      if (current <= -1 || (validUntilDate && validUntilDate < today)) {
         onShowPopup("⛔ Vaši dolasci su istekli. Uplatite nove dolaske.");
         return;
       }
@@ -331,7 +331,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
           const userDoc = userSnap.docs[0];
           const userRef = doc(db, "users", userDoc.id);
           const current = userDoc.data().remainingVisits ?? 0;
-          const updated = Math.max(-2, current - 1);
+          const updated = Math.max(-1, current - 1);
           await updateDoc(userRef, { remainingVisits: updated });
         } else {
           console.warn("❗Korisnik nije pronađen za telefon:", phone);

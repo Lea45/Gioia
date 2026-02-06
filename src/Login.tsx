@@ -99,13 +99,13 @@ export default function Login({ onLoginSuccess, onBackToHome }: LoginProps) {
           className={`login-method-tab ${loginMethod === "pin" ? "active" : ""}`}
           onClick={() => { setLoginMethod("pin"); setStatus(""); }}
         >
-          🔢 PIN
+           PIN
         </button>
         <button
           className={`login-method-tab ${loginMethod === "phone" ? "active" : ""}`}
           onClick={() => { setLoginMethod("phone"); setStatus(""); }}
         >
-          📱 Broj telefona
+           Broj telefona
         </button>
       </div>
 
@@ -114,7 +114,7 @@ export default function Login({ onLoginSuccess, onBackToHome }: LoginProps) {
           <input
             type="text"
             inputMode="numeric"
-            placeholder="Unesi PIN"
+            placeholder="Unesi PIN ****"
             maxLength={4}
             pattern="[0-9]{4}"
             value={pin}

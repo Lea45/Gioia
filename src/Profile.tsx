@@ -134,14 +134,28 @@ export default function Profile() {
           <FaLock style={{ marginRight: "8px" }} />
           PIN
         </label>
-        <div style={{ fontSize: "0.85rem", color: "#555", marginBottom: "8px" }}>
-          {currentPin !== null ? "PIN je postavljen" : "PIN nije postavljen"}
+        <div style={{ fontSize: "0.85rem", color: "#555", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+          {currentPin !== null ? (
+            <>
+              Tvoj PIN: <strong>{showPin ? currentPin : "••••"}</strong>
+              <button
+                type="button"
+                className="profile-pin-toggle"
+                onClick={() => setShowPin((v) => !v)}
+                aria-label={showPin ? "Sakriti PIN" : "Pokazati PIN"}
+              >
+                {showPin ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </>
+          ) : (
+            "PIN nije postavljen"
+          )}
         </div>
         <div className="profile-pin-row">
           <input
-            type={showPin ? "text" : "password"}
+            type="text"
             inputMode="numeric"
-            placeholder="••••"
+            placeholder={currentPin !== null ? "Novi PIN" : "Unesi PIN"}
             maxLength={4}
             value={pinInput}
             onChange={(e) => {
@@ -153,14 +167,6 @@ export default function Profile() {
               if (e.key === "Enter" && pinInput.length === 4) handleSavePin();
             }}
           />
-          <button
-            type="button"
-            className="profile-pin-toggle"
-            onClick={() => setShowPin((v) => !v)}
-            aria-label={showPin ? "Sakriti PIN" : "Pokazati PIN"}
-          >
-            {showPin ? <FaEyeSlash /> : <FaEye />}
-          </button>
         </div>
         <div className="profile-pin-buttons">
           <button

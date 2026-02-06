@@ -101,8 +101,8 @@ export default function UserManagement() {
     if (!selectedUser) return;
 
     const parsedVisits = Number(additionalVisits || "0");
-    // Dopuštamo minimalno -2
-    const totalVisits = Math.max(-2, existingVisits + parsedVisits);
+    // Dopuštamo minimalno -1
+    const totalVisits = Math.max(-1, existingVisits + parsedVisits);
 
     const userRef = doc(db, "users", selectedUser.id);
     await updateDoc(userRef, {
@@ -375,36 +375,42 @@ export default function UserManagement() {
 
       {selectedUser && (
         <div className="modal-overlay">
-          <div className="modal">
+          <div className="modal details-modal">
             <h3>{selectedUser.name}</h3>
 
-            <p>
-              Preostali dolasci: <strong>{existingVisits}</strong>
-            </p>
-            {validUntil && (
-              <p>
-                Vrijede do: <strong>{formatDate(validUntil)}</strong>
-              </p>
-            )}
+            <div className="details-info-section">
+              <div className="details-info-row">
+                <span className="details-info-label">Preostali dolasci</span>
+                <span className="details-info-value">{existingVisits}</span>
+              </div>
+              {validUntil && (
+                <div className="details-info-row">
+                  <span className="details-info-label">Vrijede do</span>
+                  <span className="details-info-value">{formatDate(validUntil)}</span>
+                </div>
+              )}
+              <div className="details-info-row">
+                <span className="details-info-label">PIN</span>
+                <span className="details-info-value">{selectedUser.pin ?? "Nije postavljeno"}</span>
+              </div>
+            </div>
 
-            <p>
-              PIN: <strong>{selectedUser.pin ?? "Nije postavljeno"}</strong>
-            </p>
+            <div className="details-edit-section">
+              <label>Dodaj dolaske:</label>
+              <input
+                type="number"
+                value={additionalVisits}
+                onChange={(e) => setAdditionalVisits(e.target.value)}
+                step="1"
+              />
 
-            <label>Dodaj dolaske:</label>
-            <input
-              type="number"
-              value={additionalVisits}
-              onChange={(e) => setAdditionalVisits(e.target.value)}
-              step="1"
-            />
-
-            <label>Novi datum valjanosti:</label>
-            <input
-              type="date"
-              value={validUntil}
-              onChange={(e) => setValidUntil(e.target.value)}
-            />
+              <label>Novi datum valjanosti:</label>
+              <input
+                type="date"
+                value={validUntil}
+                onChange={(e) => setValidUntil(e.target.value)}
+              />
+            </div>
 
             <div className="modal-buttons">
               <button onClick={() => setShowConfirm(true)}>Dodaj</button>
