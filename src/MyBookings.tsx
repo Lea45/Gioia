@@ -15,7 +15,7 @@ import spinner from "./gears-spinner.svg";
 import { runTransaction } from "firebase/firestore";
 import { sendWhatsAppMessage } from "./ScheduleCards"; // ako je tamo exportan
 
-import { FaCheckCircle, FaClock, FaTimesCircle } from "react-icons/fa";
+import { FaCheckCircle, FaClock, FaTimesCircle, FaFolderOpen, FaChevronDown, FaChevronUp } from "react-icons/fa";
 
 type Booking = {
   id: string;
@@ -33,6 +33,8 @@ type MyBookingsProps = {
 
 const MyBookings = ({ onChanged }: MyBookingsProps) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [pastBookings, setPastBookings] = useState<Booking[]>([]);
+  const [showPastBookings, setShowPastBookings] = useState(false);
   const [currentLabel, setCurrentLabel] = useState("");
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [infoModalMessage, setInfoModalMessage] = useState("");
@@ -42,61 +44,61 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
     useState<Booking | null>(null);
   const phone = localStorage.getItem("phone");
 
+  const fetchAll = async () => {
+    if (!phone) return;
+    setLoading(true);
+
+    // Dohvati rezervacije
+    const snap = await getDocs(
+      query(collection(db, "reservations"), where("phone", "==", phone))
+    );
+    const fetched = snap.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Booking[];
+
+    const now = new Date();
+
+    const futureBookings = fetched.filter((b) => {
+      const [d, m, y] = b.date.split(".");
+      const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+      const rawTime = b.time.split(/[-–]/)[0].trim();
+      const [hours, minutes] = rawTime.split(":").map(Number);
+      const date = new Date(dateISO);
+      date.setHours(hours, minutes, 0, 0);
+      return date.getTime() >= now.getTime();
+    });
+
+    // Svi termini sa statusom "rezervirano" idu u evidenciju dolazaka
+    // (čekanje ne ide dok se ne prebaci na rezervirano)
+    const past = fetched.filter((b) => b.status === "rezervirano");
+
+    // Sortiraj po datumu - najnoviji na vrhu
+    const sortedPast = past.sort((a, b) => {
+      const [dA, mA, yA] = a.date.split(".");
+      const [dB, mB, yB] = b.date.split(".");
+      const dateA = new Date(`${yA}-${mA.padStart(2, "0")}-${dA.padStart(2, "0")}`);
+      const dateB = new Date(`${yB}-${mB.padStart(2, "0")}-${dB.padStart(2, "0")}`);
+      return dateB.getTime() - dateA.getTime(); // Noviji prvi
+    });
+
+    setBookings(futureBookings);
+    setPastBookings(sortedPast);
+
+    // Dohvati aktivni tjedan
+    const metaDoc = await getDocs(
+      query(collection(db, "sessions"), where("__name__", "==", "meta"))
+    );
+    const meta = metaDoc.docs[0];
+    if (meta && meta.exists()) {
+      const data = meta.data();
+      if (data.label) setCurrentLabel(data.label);
+    }
+
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchAll = async () => {
-      if (!phone) return;
-      setLoading(true);
-
-      // Dohvati rezervacije
-      const snap = await getDocs(
-        query(collection(db, "reservations"), where("phone", "==", phone))
-      );
-      const fetched = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Booking[];
-      setBookings(fetched.sort((a, b) => a.date.localeCompare(b.date)));
-
-      const now = new Date();
-
-      const futureBookings = fetched.filter((b) => {
-        const [d, m, y] = b.date.split(".");
-        const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-        const rawTime = b.time.split(/[-–]/)[0].trim();
-        const [hours, minutes] = rawTime.split(":").map(Number);
-        const date = new Date(dateISO);
-        date.setHours(hours, minutes, 0, 0);
-        return date.getTime() >= now.getTime();
-      });
-
-      const pastBookings = fetched.filter((b) => {
-        const [d, m, y] = b.date.split(".");
-        const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-        const rawTime = b.time.split(/[-–]/)[0].trim();
-        const [hours, minutes] = rawTime.split(":").map(Number);
-        const date = new Date(dateISO);
-        date.setHours(hours, minutes, 0, 0);
-        return date.getTime() < now.getTime();
-      });
-
-      setBookings(futureBookings);
-
-      // Spremajmo prošle termine u localStorage
-      localStorage.setItem("pastBookings", JSON.stringify(pastBookings));
-
-      // Dohvati aktivni tjedan
-      const metaDoc = await getDocs(
-        query(collection(db, "sessions"), where("__name__", "==", "meta"))
-      );
-      const meta = metaDoc.docs[0];
-      if (meta && meta.exists()) {
-        const data = meta.data();
-        if (data.label) setCurrentLabel(data.label);
-      }
-
-      setLoading(false);
-    };
-
     fetchAll();
   }, []);
 
@@ -180,7 +182,10 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
       });
 
       if (promotedPhone) {
+        console.log("📱 Šaljem WhatsApp na:", promotedPhone);
         await sendWhatsAppMessage(promotedPhone);
+      } else {
+        console.log("📱 Nitko na listi čekanja za promociju");
       }
 
       // Vrati dolazak ako je otkazano na vrijeme
@@ -325,6 +330,43 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
         </div>
       )}
 
+      {/* Gumb za prošle termine */}
+      {pastBookings.length > 0 && (
+        <div className="past-bookings-section">
+          <button
+            className="past-bookings-toggle"
+            onClick={() => setShowPastBookings(!showPastBookings)}
+          >
+            <FaFolderOpen style={{ marginRight: "8px" }} />
+            Evidencija dolazaka ({pastBookings.length})
+            {showPastBookings ? (
+              <FaChevronUp style={{ marginLeft: "8px" }} />
+            ) : (
+              <FaChevronDown style={{ marginLeft: "8px" }} />
+            )}
+          </button>
+
+          {showPastBookings && (
+            <div className="past-bookings-list">
+              {pastBookings.map((booking) => (
+                <div className="past-booking-card" key={booking.id}>
+                  <div className="booking-info">
+                    <span>{booking.date}</span>
+                    <span>{booking.time}</span>
+                  </div>
+                  <div className="booking-status">
+                    <span className="status-tag past-reserved">
+                      <FaCheckCircle style={{ marginRight: "6px" }} />
+                      Prisustvovali
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {confirmCancelBooking && (
         <ConfirmPopup
           message={
@@ -347,7 +389,10 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
       {showInfoModal && (
         <ConfirmPopup
           message={infoModalMessage}
-          onCancel={() => setShowInfoModal(false)}
+          onCancel={() => {
+            setShowInfoModal(false);
+            fetchAll();
+          }}
           infoOnly
         />
       )}

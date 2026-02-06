@@ -13,11 +13,10 @@ import { onSnapshot } from "firebase/firestore";
 import {
   FaPhone,
   FaUser,
-  FaEdit,
   FaSignOutAlt,
-  FaCheckCircle,
-  FaClock,
-  FaFolderOpen,
+  FaLock,
+  FaEye,
+  FaEyeSlash,
 } from "react-icons/fa";
 import "./Profile.css";
 
@@ -28,6 +27,11 @@ export default function Profile() {
   const [docId, setDocId] = useState("");
   const [remainingVisits, setRemainingVisits] = useState<number | null>(null);
   const [validUntil, setValidUntil] = useState("");
+
+  const [currentPin, setCurrentPin] = useState<string | null>(null);
+  const [pinInput, setPinInput] = useState("");
+  const [showPin, setShowPin] = useState(false);
+  const [pinStatus, setPinStatus] = useState("");
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -42,6 +46,7 @@ export default function Profile() {
           setDocId(userDoc.id);
           setRemainingVisits(userData.remainingVisits ?? null);
           setValidUntil(userData.validUntil ?? "");
+          setCurrentPin(userData.pin ?? null);
         }
       });
     };
@@ -58,6 +63,48 @@ export default function Profile() {
     if (!iso) return "";
     const [y, m, d] = iso.split("-");
     return `${d}.${m}.${y}.`;
+  };
+
+  const handleSavePin = async () => {
+    if (!/^[0-9]{4}$/.test(pinInput)) {
+      setPinStatus("⛔ PIN mora imati točno 4 broja.");
+      return;
+    }
+    if (pinInput === currentPin) {
+      setPinStatus("⛔ PIN je isti kao trenutni.");
+      return;
+    }
+
+    // Check uniqueness
+    const uniqueQ = query(collection(db, "users"), where("pin", "==", pinInput));
+    const uniqueSnap = await getDocs(uniqueQ);
+    if (uniqueSnap.docs.some((d) => d.id !== docId)) {
+      setPinStatus("⛔ Taj PIN je već zauzet. Odaberite drugi.");
+      return;
+    }
+
+    // Save
+    await updateDoc(doc(db, "users", docId), { pin: pinInput });
+
+    // Post-save race-condition safety net
+    const recheckSnap = await getDocs(uniqueQ);
+    if (recheckSnap.docs.length > 1) {
+      await updateDoc(doc(db, "users", docId), { pin: null });
+      setCurrentPin(null);
+      setPinStatus("⛔ Taj PIN je upravo zauzet. Pokušajte ponovno.");
+      return;
+    }
+
+    setCurrentPin(pinInput);
+    setPinInput("");
+    setPinStatus("✅ PIN uspješno spremljen!");
+  };
+
+  const handleRemovePin = async () => {
+    await updateDoc(doc(db, "users", docId), { pin: null });
+    setCurrentPin(null);
+    setPinInput("");
+    setPinStatus("PIN uklonjen.");
   };
 
   return (
@@ -82,6 +129,60 @@ export default function Profile() {
         <div>{phone}</div>
       </div>
 
+      <div className="profile-card">
+        <label className="profile-label">
+          <FaLock style={{ marginRight: "8px" }} />
+          PIN
+        </label>
+        <div style={{ fontSize: "0.85rem", color: "#555", marginBottom: "8px" }}>
+          {currentPin !== null ? "PIN je postavljen" : "PIN nije postavljen"}
+        </div>
+        <div className="profile-pin-row">
+          <input
+            type={showPin ? "text" : "password"}
+            inputMode="numeric"
+            placeholder="••••"
+            maxLength={4}
+            value={pinInput}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, "");
+              setPinInput(val);
+              setPinStatus("");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && pinInput.length === 4) handleSavePin();
+            }}
+          />
+          <button
+            type="button"
+            className="profile-pin-toggle"
+            onClick={() => setShowPin((v) => !v)}
+            aria-label={showPin ? "Sakriti PIN" : "Pokazati PIN"}
+          >
+            {showPin ? <FaEyeSlash /> : <FaEye />}
+          </button>
+        </div>
+        <div className="profile-pin-buttons">
+          <button
+            className="profile-pin-save"
+            onClick={handleSavePin}
+            disabled={pinInput.length !== 4}
+          >
+            {currentPin !== null ? "Ažuriraj PIN" : "Spremi PIN"}
+          </button>
+          {currentPin !== null && (
+            <button className="profile-pin-remove" onClick={handleRemovePin}>
+              Ukloni PIN
+            </button>
+          )}
+        </div>
+        {pinStatus && (
+          <p className={`profile-pin-status ${pinStatus.startsWith("✅") ? "success" : "error"}`}>
+            {pinStatus}
+          </p>
+        )}
+      </div>
+
       <div className="profile-buttons-row">
         <button onClick={handleLogout} className="profile-logout-button">
           <FaSignOutAlt style={{ marginRight: "6px" }} />
@@ -102,48 +203,6 @@ export default function Profile() {
           </div>
         </div>
       )}
-
-      {/* Prošli termini */}
-      {(() => {
-        const raw = localStorage.getItem("pastBookings");
-        const past = raw
-          ? (JSON.parse(raw) as {
-              date: string;
-              time: string;
-              status: string;
-            }[])
-          : [];
-
-        return past.length > 0 ? (
-          <div className="profile-past-section">
-            <h3 className="profile-past-title">
-              <FaFolderOpen className="profile-status-icon2" /> Prošli termini
-            </h3>{" "}
-            <div className="profile-past-list">
-              {past.map((b, index) => (
-                <div key={index} className="profile-card">
-                  <div>
-                    <strong>{b.date}</strong>
-                  </div>
-                  <div>{b.time}</div>
-                  <div className="profile-past-status">
-                    {b.status === "rezervirano" ? (
-                      <>
-                        <FaCheckCircle className="profile-status-icon" />{" "}
-                        Prisustvovali
-                      </>
-                    ) : (
-                      <>
-                        <FaClock className="profile-status-icon" /> Čekanje
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null;
-      })()}
     </div>
   );
 }

@@ -101,3 +101,47 @@ button.active-tab {
 .login-back-button:hover {
   background-color: #cfc9bb;
 }
+
+/* PIN / Phone method toggle */
+.login-method-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+}
+
+.login-method-tab {
+  flex: 1;
+  padding: 0.6rem;
+  border: 2px solid var(--primary);
+  border-radius: 10px;
+  background-color: #fff;
+  color: var(--primary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.2s, color 0.2s;
+  box-shadow: none;
+}
+
+.login-method-tab.active {
+  background-color: var(--primary);
+  color: var(--text-light);
+}
+
+.login-method-tab:hover:not(.active) {
+  background-color: #eee;
+}
+
+/* PIN input — visually looks like a PIN code */
+.login-input.pin-input {
+  letter-spacing: 6px;
+  text-align: center;
+}
+
+.login-button:disabled {
+  background-color: #bbb;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}

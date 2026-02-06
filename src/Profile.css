@@ -139,3 +139,96 @@
   font-weight: 700;
   font-size: 1.1rem;
 }
+
+/* PIN section */
+.profile-pin-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.profile-pin-row input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  letter-spacing: 4px;
+  text-align: center;
+}
+
+.profile-pin-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 4px 8px;
+  color: #555;
+  box-shadow: none;
+}
+
+.profile-pin-toggle:hover {
+  color: #838a78;
+}
+
+.profile-pin-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.profile-pin-save {
+  flex: 1;
+  min-width: 110px;
+  padding: 10px;
+  background-color: #838a78;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  box-shadow: none;
+}
+
+.profile-pin-save:hover:not(:disabled) {
+  background-color: #6f7867;
+}
+
+.profile-pin-save:disabled {
+  background-color: #bbb;
+  cursor: not-allowed;
+}
+
+.profile-pin-remove {
+  min-width: 110px;
+  padding: 10px;
+  background-color: #ece5d1;
+  color: #c62828;
+  border: 2px solid #c62828;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  box-shadow: none;
+}
+
+.profile-pin-remove:hover {
+  background-color: #fdecea;
+}
+
+.profile-pin-status {
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+.profile-pin-status.success {
+  color: #2e7d32;
+}
+
+.profile-pin-status.error {
+  color: #c62828;
+}

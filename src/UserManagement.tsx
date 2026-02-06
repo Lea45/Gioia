@@ -14,44 +14,26 @@ import {
   startAfter,
   QueryDocumentSnapshot,
 } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import "./UserManagement.css";
 
-const sendAdminNoticeToPhone = async (phone: string, message: string) => {
-  const normalized = phone.replace(/^\+/, "").replace(/^0/, "385");
+// Koristi Firebase Function za slanje admin obavijesti (API ključ je siguran na serveru)
+const functions = getFunctions(undefined, "europe-west1");
 
-  await fetch("https://z3g8qx.api.infobip.com/whatsapp/1/message/template", {
-    method: "POST",
-    headers: {
-      Authorization:
-        "App a0c43ce9d5d14a83e05b1d09e8088860-21c77bf5-0311-49e3-8d62-01c20e94b9f3",
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      messages: [
-        {
-          from: "15557795075",
-          to: normalized,
-          messageId: "admin-" + Date.now(),
-          content: {
-            templateName: "admin_notice",
-            templateData: {
-              body: {
-                placeholders: [message],
-              },
-            },
-            language: "hr",
-          },
-        },
-      ],
-    }),
-  });
+const sendAdminNoticeToPhone = async (phone: string, message: string) => {
+  try {
+    const sendNotification = httpsCallable(functions, "sendAdminNotification");
+    await sendNotification({ phone, message });
+  } catch (err) {
+    console.error("❌ Admin obavijest greška:", err);
+  }
 };
 
 export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
     name: string;
+    pin: string | null;
   } | null>(null);
   const [successType, setSuccessType] = useState<
     "notifikacija" | "dolasci" | null
@@ -71,6 +53,7 @@ export default function UserManagement() {
     id: string;
     name: string;
     phone: string;
+    pin: string | null;
     remainingVisits: number;
     validUntil: string;
   }
@@ -125,6 +108,7 @@ export default function UserManagement() {
     id: string;
     name: string;
     phone: string;
+    pin: string | null;
     remainingVisits: number;
     validUntil: string;
   }
@@ -133,6 +117,7 @@ export default function UserManagement() {
     id: doc.id,
     name: doc.data().name,
     phone: doc.data().phone,
+    pin: doc.data().pin ?? null,
     remainingVisits: doc.data().remainingVisits || 0,
     validUntil: doc.data().validUntil || "",
   });
@@ -305,7 +290,7 @@ export default function UserManagement() {
                     const userSnap = await getDoc(userRef);
                     const data = userSnap.data();
 
-                    setSelectedUser(user);
+                    setSelectedUser({ id: user.id, name: user.name, pin: data?.pin ?? null });
                     setAdditionalVisits("");
                     setValidUntil(data?.validUntil || "");
                     setExistingVisits(data?.remainingVisits ?? 0);
@@ -384,6 +369,10 @@ export default function UserManagement() {
                 Vrijede do: <strong>{formatDate(validUntil)}</strong>
               </p>
             )}
+
+            <p>
+              PIN: <strong>{selectedUser.pin ?? "Nije postavljeno"}</strong>
+            </p>
 
             <label>Dodaj dolaske:</label>
             <input

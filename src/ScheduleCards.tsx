@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import AnimatedCollapse from "./AnimatedCollapse";
 import { db } from "./firebase";
 import { runTransaction } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 import {
   collection,
@@ -31,51 +32,16 @@ import {
 } from "react-icons/fa";
 import spinner from "./gears-spinner.svg";
 
+// Koristi Firebase Function za slanje WhatsApp poruka (API ključ je siguran na serveru)
+const functions = getFunctions(undefined, "europe-west1");
+
 export const sendWhatsAppMessage = async (rawPhone: string) => {
-  const normalized = rawPhone.startsWith("0")
-    ? "385" + rawPhone.slice(1)
-    : rawPhone;
-
   try {
-    const response = await fetch(
-      "https://z3g8qx.api.infobip.com/whatsapp/1/message/template",
-      {
-        method: "POST",
-        headers: {
-          Authorization:
-            "App a0c43ce9d5d14a83e05b1d09e8088860-21c77bf5-0311-49e3-8d62-01c20e94b9f3",
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          messages: [
-            {
-              from: "15557795075",
-              to: normalized,
-              messageId: "waitlist-" + Date.now(),
-              content: {
-                templateName: "waitlist_moved",
-                templateData: {
-                  body: {
-                    placeholders: [],
-                  },
-                },
-                language: "hr",
-              },
-            },
-          ],
-        }),
-      }
-    );
-
-    const data = await response.json();
-    if (!response.ok) {
-      console.error("❌ WhatsApp greška:", data);
-    } else {
-      console.log("✅ WhatsApp poslana:", data);
-    }
+    const sendNotification = httpsCallable(functions, "sendWhatsAppNotification");
+    const result = await sendNotification({ phone: rawPhone, templateName: "waitlist_moved" });
+    console.log("✅ WhatsApp poslana:", result.data);
   } catch (err) {
-    console.error("❌ WhatsApp fetch greška:", err);
+    console.error("❌ WhatsApp greška:", err);
   }
 };
 

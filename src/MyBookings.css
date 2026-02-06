@@ -84,3 +84,78 @@
   background-color: #6f7867;
   transform: scale(1.05);
 }
+
+/* Prošli termini */
+.past-bookings-section {
+  margin-top: 24px;
+  border-top: 1px dashed #c0a57b;
+  padding-top: 16px;
+}
+
+.past-bookings-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #faebd7;
+  color: #4a4a4a;
+  border: 1px solid #c0a57b;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-family: "Special Elite", serif;
+}
+
+.past-bookings-toggle:hover {
+  background-color: #f5e6d3;
+}
+
+.past-bookings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.past-booking-card {
+  background-color: #f5f0e6;
+  border: 1px solid #d4cfc5;
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: "Special Elite", serif;
+  opacity: 0.85;
+}
+
+.past-booking-card .booking-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+  color: #5a5a5a;
+}
+
+.past-booking-card .booking-status {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+}
+
+.my-bookings .status-tag.past-reserved {
+  color: #6b7a5e;
+  background-color: #e8ede3;
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.my-bookings .status-tag.past-waiting {
+  color: #a06000;
+  background-color: #f5e8d0;
+  border-radius: 8px;
+  padding: 4px 8px;
+}
