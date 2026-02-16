@@ -4,16 +4,13 @@ import {
   getDocs,
   query,
   where,
-  deleteDoc,
-  doc,
-  updateDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import ConfirmPopup from "./ConfirmPopup";
 import "./MyBookings.css";
 import spinner from "./gears-spinner.svg";
-import { runTransaction } from "firebase/firestore";
-import { sendWhatsAppMessage } from "./ScheduleCards"; // ako je tamo exportan
+import { sendWhatsAppMessage } from "./ScheduleCards";
+import { cancelReservation } from "./reservationUtils";
 
 import { FaCheckCircle, FaClock, FaTimesCircle, FaFolderOpen } from "react-icons/fa";
 
@@ -24,7 +21,7 @@ type Booking = {
   name?: string;
   date: string;
   time: string;
-  status: "rezervirano" | "cekanje";
+  status: "rezervirano" | "cekanje" | "otkazano";
 };
 
 type MyBookingsProps = {
@@ -60,6 +57,7 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
     const now = new Date();
 
     const futureBookings = fetched.filter((b) => {
+      if (b.status === "otkazano") return false;
       const [d, m, y] = b.date.split(".");
       const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
       const rawTime = b.time.split(/[-–]/)[0].trim();
@@ -120,90 +118,24 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
   };
 
   const cancelBooking = async (booking: Booking) => {
-    const [d, m, y] = booking.date.split(".");
-    const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-    const rawTime = booking.time.split(/[-–]/)[0].trim();
-    const [hours, minutes] = rawTime.split(":").map(Number);
-    const sessionDateTime = new Date(dateISO);
-    sessionDateTime.setHours(hours, minutes, 0, 0);
-
-    const now = new Date();
-    const timeDiffHours =
-      (sessionDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-    const canCancel = timeDiffHours >= 2;
-
-    let promotedPhone: string | null = null;
-
     try {
-      await runTransaction(db, async (t) => {
-        const sessionRef = doc(db, "sessions", booking.sessionId);
-        const sessionSnap = await t.get(sessionRef);
-        const sessionData = sessionSnap.data();
+      const result = await cancelReservation(booking.id);
 
-        if (!sessionSnap.exists()) throw new Error("Session ne postoji.");
-        if (!sessionData) throw new Error("SessionData je prazan.");
-
-        t.delete(doc(db, "reservations", booking.id));
-
-        let newBooked = sessionData.bookedSlots ?? 0;
-
-        if (booking.status === "rezervirano") {
-          newBooked = Math.max(0, newBooked - 1);
-
-          const waitSnap = await getDocs(
-            query(
-              collection(db, "reservations"),
-              where("sessionId", "==", booking.sessionId),
-              where("status", "==", "cekanje")
-            )
-          );
-
-          const waitlist = waitSnap.docs
-            .map((doc) => {
-              const data = doc.data();
-              return {
-                id: doc.id,
-                phone: data.phone,
-                createdAt: data.createdAt?.toDate?.() ?? new Date(0),
-              };
-            })
-            .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-
-          if (waitlist.length > 0) {
-            const next = waitlist[0];
-            const nextRef = doc(db, "reservations", next.id);
-            t.update(nextRef, { status: "rezervirano" });
-            promotedPhone = next.phone;
-            newBooked += 1;
-          }
-        }
-
-        t.update(sessionRef, { bookedSlots: newBooked });
-      });
-
-      if (promotedPhone) {
-        console.log("📱 Šaljem WhatsApp na:", promotedPhone);
-        await sendWhatsAppMessage(promotedPhone);
-      } else {
-        console.log("📱 Nitko na listi čekanja za promociju");
+      if (!result.ok) {
+        console.error("Otkazivanje neuspješno:", result.reason);
+        return;
       }
 
-      // Vrati dolazak ako je otkazano na vrijeme
-      if (canCancel) {
-        const userSnap = await getDocs(
-          query(collection(db, "users"), where("phone", "==", booking.phone))
-        );
-        if (!userSnap.empty) {
-          const userDoc = userSnap.docs[0];
-          const userRef = doc(db, "users", userDoc.id);
-          const current = userDoc.data().remainingVisits ?? 0;
-          await updateDoc(userRef, { remainingVisits: current + 1 });
-        }
+      // Pošalji WhatsApp ako je netko promaknut s čekanja
+      if (result.promotedPhone) {
+        await sendWhatsAppMessage(result.promotedPhone);
       }
 
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
       setInfoModalMessage(
-        `Otkazali ste termin:\n${booking.date}\n${booking.time}`
+        result.refunded
+          ? `Otkazali ste termin:\n${booking.date}\n${booking.time}\nDolazak je vraćen.`
+          : `Otkazali ste termin:\n${booking.date}\n${booking.time}`
       );
       setShowInfoModal(true);
     } catch (err) {
