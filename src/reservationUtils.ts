@@ -27,7 +27,7 @@ export type CancelResult = {
 export async function cancelReservation(
   reservationId: string
 ): Promise<CancelResult> {
-  // 1) Dohvati rezervaciju
+  // 1) Dohvati rezervaciju (izvan transakcije za brzu provjeru)
   const reservationRef = doc(db, "reservations", reservationId);
   const reservationSnap = await getDoc(reservationRef);
 
@@ -72,8 +72,9 @@ export async function cancelReservation(
   let refundReason = "";
 
   // 3) Atomska transakcija
+  // VAŽNO: Firestore zahtijeva da svi transaction.get() pozivi budu PRIJE bilo kojeg write poziva
   await runTransaction(db, async (t) => {
-    // Re-read unutar transakcije za konzistentnost
+    // ===== FAZA 1: SVI READS =====
     const resSnapTx = await t.get(reservationRef);
     const resTxData = resSnapTx.data();
 
@@ -81,14 +82,60 @@ export async function cancelReservation(
       throw new Error("already_cancelled");
     }
 
+    const sessionRef = doc(db, "sessions", resTxData?.sessionId);
+    const sessionSnap = await t.get(sessionRef);
+
+    let userSnap = null;
+    if (userRef) {
+      userSnap = await t.get(userRef);
+    }
+
+    // getDocs NIJE transaction read, može biti između
+    const waitSnap =
+      resTxData?.status === "rezervirano"
+        ? await getDocs(
+            query(
+              collection(db, "reservations"),
+              where("sessionId", "==", resTxData?.sessionId),
+              where("status", "==", "cekanje")
+            )
+          )
+        : null;
+
+    // Ako ima waitlist, dohvati prvog kandidata (transaction read)
+    let nextRef = null;
+    let nextSnap = null;
+    if (waitSnap && !waitSnap.empty) {
+      const waitlist = waitSnap.docs
+        .filter((d) => d.id !== reservationId)
+        .map((d) => ({
+          id: d.id,
+          phone: d.data().phone,
+          createdAt: d.data().createdAt?.toDate?.() ?? new Date(0),
+        }))
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+      if (waitlist.length > 0) {
+        const next = waitlist[0];
+        nextRef = doc(db, "reservations", next.id);
+        nextSnap = await t.get(nextRef);
+        if (nextSnap.exists() && nextSnap.data()?.status === "cekanje") {
+          promotedPhone = next.phone;
+        } else {
+          nextRef = null;
+          nextSnap = null;
+        }
+      }
+    }
+
+    // ===== FAZA 2: SVI WRITES =====
     const visitDeducted = resTxData?.visitDeducted === true;
     const wasRezervirano = resTxData?.status === "rezervirano";
 
-    // Odredi refund na temelju visitDeducted, NE na temelju vremena
     refunded = visitDeducted;
     refundReason = visitDeducted ? "visit_was_deducted" : "not_deducted";
 
-    // Update rezervacije na "otkazano"
+    // 1) Update rezervacije na "otkazano"
     const cancelUpdate: Record<string, any> = {
       status: "otkazano",
       cancelledAt: serverTimestamp(),
@@ -100,10 +147,7 @@ export async function cancelReservation(
     }
     t.update(reservationRef, cancelUpdate);
 
-    // Ažuriraj session bookedSlots i promakni s waitliste
-    const sessionRef = doc(db, "sessions", resTxData?.sessionId);
-    const sessionSnap = await t.get(sessionRef);
-
+    // 2) Ažuriraj session bookedSlots
     if (sessionSnap.exists()) {
       const sessionData = sessionSnap.data();
       let newBooked = sessionData?.bookedSlots ?? 0;
@@ -111,47 +155,20 @@ export async function cancelReservation(
       if (wasRezervirano) {
         newBooked = Math.max(0, newBooked - 1);
 
-        // Nađi prvog s liste čekanja
-        const waitSnap = await getDocs(
-          query(
-            collection(db, "reservations"),
-            where("sessionId", "==", resTxData?.sessionId),
-            where("status", "==", "cekanje")
-          )
-        );
-
-        const waitlist = waitSnap.docs
-          .filter((d) => d.id !== reservationId)
-          .map((d) => ({
-            id: d.id,
-            phone: d.data().phone,
-            createdAt: d.data().createdAt?.toDate?.() ?? new Date(0),
-          }))
-          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-
-        if (waitlist.length > 0) {
-          const next = waitlist[0];
-          const nextRef = doc(db, "reservations", next.id);
-          const nextSnap = await t.get(nextRef);
-
-          if (nextSnap.exists() && nextSnap.data()?.status === "cekanje") {
-            t.update(nextRef, { status: "rezervirano" });
-            newBooked += 1;
-            promotedPhone = next.phone;
-          }
+        // Promakni prvog s waitliste
+        if (nextRef && promotedPhone) {
+          t.update(nextRef, { status: "rezervirano" });
+          newBooked += 1;
         }
       }
 
       t.update(sessionRef, { bookedSlots: newBooked });
     }
 
-    // Vrati dolazak atomski unutar iste transakcije
-    if (refunded && userRef) {
-      const userSnap = await t.get(userRef);
-      if (userSnap.exists()) {
-        const currentVisits = userSnap.data()?.remainingVisits ?? 0;
-        t.update(userRef, { remainingVisits: currentVisits + 1 });
-      }
+    // 3) Vrati dolazak atomski
+    if (refunded && userRef && userSnap && userSnap.exists()) {
+      const currentVisits = userSnap.data()?.remainingVisits ?? 0;
+      t.update(userRef, { remainingVisits: currentVisits + 1 });
     }
   });
 

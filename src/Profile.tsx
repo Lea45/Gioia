@@ -34,24 +34,22 @@ export default function Profile() {
   const [pinStatus, setPinStatus] = useState("");
 
   useEffect(() => {
-    const fetchUser = async () => {
-      if (!phone) return;
+    if (!phone) return;
 
-      const q = query(collection(db, "users"), where("phone", "==", phone));
-      onSnapshot(q, (snap) => {
-        if (!snap.empty) {
-          const userDoc = snap.docs[0];
-          const userData = userDoc.data();
-          setName(userData.name || "");
-          setDocId(userDoc.id);
-          setRemainingVisits(userData.remainingVisits ?? null);
-          setValidUntil(userData.validUntil ?? "");
-          setCurrentPin(userData.pin ?? null);
-        }
-      });
-    };
+    const q = query(collection(db, "users"), where("phone", "==", phone));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      if (!snap.empty) {
+        const userDoc = snap.docs[0];
+        const userData = userDoc.data();
+        setName(userData.name || "");
+        setDocId(userDoc.id);
+        setRemainingVisits(userData.remainingVisits ?? null);
+        setValidUntil(userData.validUntil ?? "");
+        setCurrentPin(userData.pin ?? null);
+      }
+    });
 
-    fetchUser();
+    return () => unsubscribe();
   }, [phone]);
 
   const handleLogout = () => {

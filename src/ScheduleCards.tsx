@@ -269,6 +269,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
         status,
       }: { id: string; status: "rezervirano" | "cekanje" } =
         await runTransaction(db, async (transaction) => {
+          // ===== FAZA 1: SVI READS PRVO =====
           const sessionRef = doc(db, "sessions", session.id);
           const sessionDoc = await transaction.get(sessionRef);
 
@@ -278,7 +279,13 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
 
           const sessionData = sessionDoc.data() as Session;
 
-          // Provjera duplikata u bazi (unutar transakcije)
+          // Dohvati user doc unutar transakcije (PRIJE writeova)
+          let userSnapTx = null;
+          if (userDocRef) {
+            userSnapTx = await transaction.get(userDocRef);
+          }
+
+          // getDocs NIJE transaction read, može biti između
           const userExistingRes = await getDocs(
             query(
               collection(db, "reservations"),
@@ -294,7 +301,6 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
             throw new Error("ALREADY_RESERVED");
           }
 
-          // Odredi status na temelju svježih podataka
           const existingResSnap = await getDocs(
             query(
               collection(db, "reservations"),
@@ -307,9 +313,9 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
           const status: "rezervirano" | "cekanje" =
             brojRezervacija < sessionData.maxSlots ? "rezervirano" : "cekanje";
 
+          // ===== FAZA 2: SVI WRITES =====
           const newReservationRef = doc(collection(db, "reservations"));
 
-          // Kreiraj rezervaciju s visitDeducted poljem
           transaction.set(newReservationRef, {
             phone,
             name,
@@ -324,14 +330,12 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
             visitDeductedAt: userDocRef ? serverTimestamp() : null,
           });
 
-          // Ažuriraj bookedSlots
           transaction.update(sessionRef, {
             bookedSlots: brojRezervacija + 1,
           });
 
-          // ATOMSKI smanji remainingVisits unutar ISTE transakcije
-          if (userDocRef) {
-            const userSnapTx = await transaction.get(userDocRef);
+          // ATOMSKI smanji remainingVisits (read je već obavljen gore)
+          if (userDocRef && userSnapTx) {
             const currentVisits = userSnapTx.data()?.remainingVisits ?? 0;
             transaction.update(userDocRef, {
               remainingVisits: Math.max(-1, currentVisits - 1),

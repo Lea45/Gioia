@@ -100,23 +100,6 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
     fetchAll();
   }, []);
 
-  const fetchBokings = async () => {
-    if (!phone) return;
-    setLoading(true);
-
-    const snap = await getDocs(
-      query(collection(db, "reservations"), where("phone", "==", phone))
-    );
-
-    const fetched = snap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Booking[];
-
-    setBookings(fetched.sort((a, b) => a.date.localeCompare(b.date)));
-    setLoading(false);
-  };
-
   const cancelBooking = async (booking: Booking) => {
     try {
       const result = await cancelReservation(booking.id);

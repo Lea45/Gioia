@@ -13,6 +13,7 @@ import {
   query,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 
 type Reservation = {
@@ -134,6 +135,10 @@ export default function StatusManagement() {
         return;
       }
 
+      // Pripremi sve operacije, zatim izvrši atomski po korisniku
+      let refundedCount = 0;
+      const errors: string[] = [];
+
       for (const res of waitlistToRefund) {
         const userQuery = query(
           collection(db, "users"),
@@ -142,37 +147,35 @@ export default function StatusManagement() {
         const userSnap = await getDocs(userQuery);
 
         if (userSnap.empty) {
-          console.warn(`⚠️ Korisnik ${res.phone} nije pronađen u users.`);
+          errors.push(`Korisnik ${res.phone} nije pronađen.`);
           continue;
         }
 
         const userDocRef = userSnap.docs[0].ref;
+        const resRef = doc(db, "reservations", res.id);
 
+        // writeBatch: obe operacije uspiju ili obje padnu (all-or-nothing)
         try {
-          await updateDoc(userDocRef, {
-            remainingVisits: increment(1),
-          });
+          const batch = writeBatch(db);
+          batch.update(userDocRef, { remainingVisits: increment(1) });
+          batch.update(resRef, { refunded: true });
+          await batch.commit();
+          refundedCount++;
         } catch (err) {
-          console.error("❌ Greška pri update korisnika:", err);
-          continue;
+          console.error(`❌ Greška pri povratu za ${res.name || res.phone}:`, err);
+          errors.push(`${res.name || res.phone}: greška pri povratu`);
         }
-
-        try {
-          const resRef = doc(db, "reservations", res.id);
-          await updateDoc(resRef, {
-            refunded: true,
-          });
-        } catch (err) {
-          console.error("❌ Greška pri update rezervacije:", err);
-          continue;
-        }
-
-        console.log(`✔ Povrat za ${res.name || res.phone}`);
       }
 
-      setInfoModalMessage(
-        "✔ Vraćeni su dolasci za sve korisnike s liste čekanja čiji su termini prošli."
-      );
+      if (errors.length > 0) {
+        setInfoModalMessage(
+          `✔ Vraćeno dolazaka: ${refundedCount}\n❌ Neuspješno: ${errors.length}\n\n${errors.join("\n")}`
+        );
+      } else {
+        setInfoModalMessage(
+          "✔ Vraćeni su dolasci za sve korisnike s liste čekanja čiji su termini prošli."
+        );
+      }
       setShowInfoModal(true);
       refreshData();
     } catch (error) {
