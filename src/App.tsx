@@ -115,9 +115,9 @@ export default function App() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          LeMatech-Digital
+          Powered by: LeMatech-Digital
         </a>{" "}
-        © 2025
+      
       </footer>
     </>
   );
