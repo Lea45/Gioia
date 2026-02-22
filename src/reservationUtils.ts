@@ -129,7 +129,10 @@ export async function cancelReservation(
     }
 
     // ===== FAZA 2: SVI WRITES =====
-    const visitDeducted = resTxData?.visitDeducted === true;
+    // Stare rezervacije (prije deploymenta) nemaju visitDeducted polje,
+    // ali stari kod je UVIJEK oduzimao visit pri rezervaciji.
+    // Zato: undefined/true → visit JE oduzet, samo explicit false → nije.
+    const visitDeducted = resTxData?.visitDeducted !== false;
     const wasRezervirano = resTxData?.status === "rezervirano";
 
     refunded = visitDeducted;

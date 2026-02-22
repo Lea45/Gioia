@@ -104,6 +104,14 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
     try {
       const result = await cancelReservation(booking.id);
 
+      console.log("Otkazivanje rezultat:", {
+        reservationId: booking.id,
+        phone: booking.phone,
+        date: booking.date,
+        time: booking.time,
+        ...result,
+      });
+
       if (!result.ok) {
         console.error("Otkazivanje neuspješno:", result.reason);
         return;
@@ -117,7 +125,7 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
       setInfoModalMessage(
         result.refunded
-          ? `Otkazali ste termin:\n${booking.date}\n${booking.time}\nDolazak je vraćen.`
+          ? `Otkazali ste termin:\n${booking.date}\n${booking.time}\n\n✅ Dolazak je vraćen.`
           : `Otkazali ste termin:\n${booking.date}\n${booking.time}`
       );
       setShowInfoModal(true);
