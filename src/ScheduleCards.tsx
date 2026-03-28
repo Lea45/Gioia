@@ -12,6 +12,7 @@ import {
   query,
   where,
   serverTimestamp,
+  increment,
 } from "firebase/firestore";
 import { cancelReservation } from "./reservationUtils";
 import "./ScheduleCards.css";
@@ -63,6 +64,8 @@ type Reservation = {
   phone: string;
   name?: string;
   sessionId: string;
+  date: string;
+  time: string;
   status: "rezervirano" | "cekanje" | "otkazano";
 };
 
@@ -130,13 +133,21 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
   };
 
   useEffect(() => {
-    fetchData(true); // prvo dohvaćanje s loading spinnerom
+    fetchData(true);
 
     const interval = setInterval(() => {
-      fetchData(false); // tihi refresh
-    }, 20000); // 20 sekundi
+      fetchData(false);
+    }, 20000);
 
-    return () => clearInterval(interval);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") fetchData(false);
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
 
   const getDayName = (dateStr: string) => {
@@ -230,31 +241,33 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       return;
     }
 
-    // Provjera duplikata na isti dan (osim admina)
     const adminPhone = "20181804";
+
+    // Provjera duplikata za ovaj termin (lokalna)
+    const already = reservations.find(
+      (r) =>
+        r.date === session.date &&
+        r.time === session.time &&
+        r.phone === phone &&
+        r.status !== "otkazano"
+    );
+    if (already) {
+      onShowPopup("⛔ Već ste prijavljeni na ovaj termin.");
+      return;
+    }
+
+    // Provjera duplikata na isti dan (osim admina)
     if (phone !== adminPhone) {
       const sameDayReservation = reservations.find(
         (r) =>
           r.phone === phone &&
-          r.status !== "otkazano" &&
-          sessions.find((s) => s.id === r.sessionId)?.date === session.date
+          r.date === session.date &&
+          r.status !== "otkazano"
       );
       if (sameDayReservation) {
         onShowPopup("⛔ Već imate rezervaciju za taj dan.");
         return;
       }
-    }
-
-    // Provjera duplikata za ovaj termin (lokalna)
-    const already = reservations.find(
-      (r) =>
-        r.sessionId === session.id &&
-        r.phone === phone &&
-        r.status !== "otkazano"
-    );
-    if (already) {
-      onShowPopup("⛔ Već ste prijavljeni.");
-      return;
     }
 
     // Spriječi dvostruki klik
@@ -285,15 +298,15 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
             userSnapTx = await transaction.get(userDocRef);
           }
 
-          // getDocs NIJE transaction read, može biti između
+          // Provjera duplikata za isti termin
           const userExistingRes = await getDocs(
             query(
               collection(db, "reservations"),
-              where("sessionId", "==", session.id),
+              where("date", "==", session.date),
+              where("time", "==", session.time),
               where("phone", "==", phone)
             )
           );
-
           const hasActiveReservation = userExistingRes.docs.some(
             (d) => d.data().status !== "otkazano"
           );
@@ -301,10 +314,28 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
             throw new Error("ALREADY_RESERVED");
           }
 
+          // Provjera duplikata za isti dan (osim admina)
+          if (phone !== adminPhone) {
+            const sameDayRes = await getDocs(
+              query(
+                collection(db, "reservations"),
+                where("date", "==", session.date),
+                where("phone", "==", phone)
+              )
+            );
+            const hasSameDayReservation = sameDayRes.docs.some(
+              (d) => d.data().status !== "otkazano"
+            );
+            if (hasSameDayReservation) {
+              throw new Error("SAME_DAY");
+            }
+          }
+
           const existingResSnap = await getDocs(
             query(
               collection(db, "reservations"),
-              where("sessionId", "==", session.id),
+              where("date", "==", session.date),
+              where("time", "==", session.time),
               where("status", "==", "rezervirano")
             )
           );
@@ -331,7 +362,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
           });
 
           transaction.update(sessionRef, {
-            bookedSlots: brojRezervacija + 1,
+            bookedSlots: increment(1),
           });
 
           // ATOMSKI smanji remainingVisits (read je već obavljen gore)
@@ -351,6 +382,8 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
         phone,
         name,
         sessionId: session.id,
+        date: session.date,
+        time: session.time,
         status,
       };
 
@@ -374,6 +407,8 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     } catch (error: any) {
       if (error?.message === "ALREADY_RESERVED") {
         onShowPopup("⛔ Već ste prijavljeni na ovaj termin.");
+      } else if (error?.message === "SAME_DAY") {
+        onShowPopup("⛔ Već imate rezervaciju za taj dan.");
       } else {
         console.error("⛔ Greška pri upisu rezervacije:", error);
         onShowPopup("⛔ Greška pri rezervaciji. Pokušajte ponovno.");
@@ -418,10 +453,13 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     }
   };
 
-  const getRezervacijaZaSession = (sessionId: string) =>
-    reservations.filter(
-      (r) => r.sessionId === sessionId && r.status === "rezervirano"
+  const getRezervacijaZaSession = (sessionId: string) => {
+    const session = sessions.find((s) => s.id === sessionId);
+    if (!session) return [];
+    return reservations.filter(
+      (r) => r.date === session.date && r.time === session.time && r.status === "rezervirano"
     );
+  };
 
   if (loading && initialLoad) {
     return (
@@ -542,8 +580,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                 const reserved = reservations.find(
                   (r) => r.phone === phone && r.sessionId === s.id
                 );
-                const isFull =
-                  getRezervacijaZaSession(s.id).length >= s.maxSlots;
+                const isFull = getRezervacijaZaSession(s.id).length >= s.maxSlots;
 
                 return (
                   <div

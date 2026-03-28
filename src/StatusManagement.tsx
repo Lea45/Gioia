@@ -87,6 +87,27 @@ export default function StatusManagement() {
     setLoading(false);
   };
 
+  const fixOverbooking = async () => {
+    const sessionsSnap = await getDocs(collection(db, "sessions"));
+    let ukupno = 0;
+    for (const sessionDoc of sessionsSnap.docs) {
+      const session = sessionDoc.data();
+      const resSnap = await getDocs(query(collection(db, "reservations"), where("date", "==", session.date), where("time", "==", session.time), where("status", "==", "rezervirano")));
+      const rezervirano = resSnap.docs.sort((a, b) => a.data().createdAt?.toMillis() - b.data().createdAt?.toMillis());
+      if (rezervirano.length > session.maxSlots) {
+        const zaCekanje = rezervirano.slice(session.maxSlots);
+        const batch = writeBatch(db);
+        for (const res of zaCekanje) { batch.update(res.ref, { status: "cekanje" }); ukupno++; }
+        batch.update(sessionDoc.ref, { bookedSlots: session.maxSlots });
+        await batch.commit();
+      }
+    }
+    await refreshData();
+    setInfoModalMessage(ukupno > 0 ? `✅ Premješteno ${ukupno} na čekanje.` : "ℹ️ Nema prekoračenja.");
+    setShowInfoModal(true);
+  };
+
+
   const formatWeekday = (dateString: string) => {
     if (!dateString) return "NEPOZNAT DAN";
     const parts = dateString.split(".").map((part) => part.trim());

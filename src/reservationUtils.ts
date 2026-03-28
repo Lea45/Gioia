@@ -8,6 +8,7 @@ import {
   where,
   runTransaction,
   serverTimestamp,
+  limit,
 } from "firebase/firestore";
 
 export type CancelResult = {
@@ -82,7 +83,18 @@ export async function cancelReservation(
       throw new Error("already_cancelled");
     }
 
-    const sessionRef = doc(db, "sessions", resTxData?.sessionId);
+    // Traži session po datumu i vremenu (ne sessionId koji može biti zastarjel)
+    const sessionQuery = await getDocs(
+      query(
+        collection(db, "sessions"),
+        where("date", "==", resTxData?.date),
+        where("time", "==", resTxData?.time),
+        limit(1)
+      )
+    );
+    const sessionRef = sessionQuery.empty
+      ? doc(db, "sessions", resTxData?.sessionId)
+      : sessionQuery.docs[0].ref;
     const sessionSnap = await t.get(sessionRef);
 
     let userSnap = null;
@@ -96,7 +108,8 @@ export async function cancelReservation(
         ? await getDocs(
             query(
               collection(db, "reservations"),
-              where("sessionId", "==", resTxData?.sessionId),
+              where("date", "==", resTxData?.date),
+              where("time", "==", resTxData?.time),
               where("status", "==", "cekanje")
             )
           )
