@@ -31,6 +31,7 @@ type Session = {
   maxSlots: number;
   bookedSlots: number;
   active: boolean;
+  description?: string;
 };
 
 export default function ScheduleAdmin() {
@@ -68,6 +69,7 @@ export default function ScheduleAdmin() {
 
   const saveNoteForDay = async (date: string, text: string) => {
     await setDoc(doc(db, "draftScheduleNotes", date), { text });
+    await setDoc(doc(db, "sessionsNotes", date), { text });
     setDailyNotes((prev) => ({ ...prev, [date]: text }));
     setNoteModalDate(null);
     setNoteInput("");
@@ -214,16 +216,28 @@ export default function ScheduleAdmin() {
       .filter((doc) => doc.id !== "meta")
       .map((doc) => doc.data());
 
+    const notesSnap = await getDocs(collection(db, "draftScheduleNotes"));
+    const notesByDate: Record<string, string> = {};
+    notesSnap.forEach((noteDoc) => {
+      notesByDate[noteDoc.id] = noteDoc.data().text;
+    });
+
+    const draftTermsWithDescriptions = draftTerms.map((term) => ({
+      ...term,
+      description: notesByDate[term.date] || "",
+    }));
+
     const currentSessions = await getDocs(collection(db, "sessions"));
     await Promise.all(
       currentSessions.docs.map((d) => deleteDoc(doc(db, "sessions", d.id)))
     );
     await Promise.all(
-      draftTerms.map((term) => addDoc(collection(db, "sessions"), term))
+      draftTermsWithDescriptions.map((term) =>
+        addDoc(collection(db, "sessions"), term)
+      )
     );
 
     // 🔁 Kopiraj opise iz draftScheduleNotes u sessionsNotes
-    const notesSnap = await getDocs(collection(db, "draftScheduleNotes"));
     const currentNotes = await getDocs(collection(db, "sessionsNotes"));
 
     // Obrisi sve stare sessionsNotes
@@ -238,7 +252,13 @@ export default function ScheduleAdmin() {
       )
     );
 
-    setShowModal("✅ Novi tjedan je uspješno objavljen.");
+    setToastMessage("Raspored je uspješno objavljen");
+    const draftMetaDoc = await getDoc(doc(db, "draftSchedule", "meta"));
+    if (draftMetaDoc.exists()) {
+      await setDoc(doc(db, "sessions", "meta"), draftMetaDoc.data());
+    }
+
+    setTimeout(() => setToastMessage(null), 3000);
     setView("sessions");
   };
 

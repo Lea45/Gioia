@@ -57,6 +57,7 @@ type Session = {
   time: string;
   bookedSlots: number;
   maxSlots: number;
+  description?: string;
 };
 
 type Reservation = {
@@ -98,19 +99,31 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
 
     const sessionsSnap = await getDocs(collection(db, "sessions"));
     const reservationsSnap = await getDocs(collection(db, "reservations"));
-    const metaDoc = await getDoc(doc(db, "draftSchedule", "meta"));
-
-    const notesSnap = await getDocs(collection(db, "sessionsNotes"));
-    const notes: Record<string, string> = {};
-    notesSnap.forEach((doc) => {
-      notes[doc.id] = doc.data().text;
-    });
-    setDailyNotes(notes);
+    const metaDoc = await getDoc(doc(db, "sessions", "meta"));
 
     const fetchedSessions = sessionsSnap.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as Session[];
+    const visibleSessions = fetchedSessions.filter((session) => session.date);
+
+    const notesSnap = await getDocs(collection(db, "sessionsNotes"));
+    const draftNotesSnap = await getDocs(collection(db, "draftScheduleNotes"));
+    const notes: Record<string, string> = {};
+    notesSnap.forEach((doc) => {
+      notes[doc.id] = doc.data().text;
+    });
+    draftNotesSnap.forEach((doc) => {
+      if (!notes[doc.id]) {
+        notes[doc.id] = doc.data().text;
+      }
+    });
+    visibleSessions.forEach((session) => {
+      if (!notes[session.date] && session.description?.trim()) {
+        notes[session.date] = session.description;
+      }
+    });
+    setDailyNotes(notes);
 
     const fetchedReservations = reservationsSnap.docs
       .map((doc) => ({
@@ -119,7 +132,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       }))
       .filter((r: any) => r.status !== "otkazano") as Reservation[];
 
-    setSessions(fetchedSessions);
+    setSessions(visibleSessions);
     setReservations(fetchedReservations);
 
     if (metaDoc.exists()) {
