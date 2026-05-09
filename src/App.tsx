@@ -13,7 +13,11 @@ import AdminDashboard from "./AdminDashboard";
 type View = "home" | "client" | "clientDashboard" | "admin" | "adminDashboard";
 
 export default function App() {
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>(() => {
+    if (localStorage.getItem("phone") && localStorage.getItem("userId")) return "clientDashboard";
+    if (localStorage.getItem("admin") === "true") return "adminDashboard";
+    return "home";
+  });
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
 

@@ -40,7 +40,9 @@ function NotificationPopup({ message, onClose }: NotificationPopupProps) {
 }
 
 export default function ClientDashboard() {
-  const [activeTab, setActiveTab] = useState<string>("raspored");
+  const [activeTab, setActiveTab] = useState<string>(
+    localStorage.getItem("lastTab") ?? "raspored"
+  );
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [popupMessage, setPopupMessage] = useState<string>("");
 
@@ -78,7 +80,7 @@ export default function ClientDashboard() {
       <div className="tab-bar">
         <button
           className={`tab-button ${activeTab === "raspored" ? "active" : ""}`}
-          onClick={() => setActiveTab("raspored")}
+          onClick={() => { setActiveTab("raspored"); localStorage.setItem("lastTab", "raspored"); }}
         >
           <FaCalendarAlt /> Raspored
         </button>
@@ -87,14 +89,14 @@ export default function ClientDashboard() {
           className={`tab-button ${
             activeTab === "moji-termini" ? "active" : ""
           }`}
-          onClick={() => setActiveTab("moji-termini")}
+          onClick={() => { setActiveTab("moji-termini"); localStorage.setItem("lastTab", "moji-termini"); }}
         >
           <FaCheckCircle /> Termini
         </button>
 
         <button
           className={`tab-button ${activeTab === "profil" ? "active" : ""}`}
-          onClick={() => setActiveTab("profil")}
+          onClick={() => { setActiveTab("profil"); localStorage.setItem("lastTab", "profil"); }}
         >
           <FaUser /> Profil
         </button>

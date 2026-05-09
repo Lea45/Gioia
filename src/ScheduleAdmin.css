@@ -120,14 +120,19 @@
 }
 
 .schedule-admin-container .custom-toast {
-  margin: 1rem auto;
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
   max-width: 400px;
+  width: 90%;
   background-color: #d6cfbc;
   color: #2e2e2e;
   padding: 0.8rem 1.2rem;
   border-radius: 12px;
   font-weight: 600;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   text-align: center;
 }
 

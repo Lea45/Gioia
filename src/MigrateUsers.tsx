@@ -1,36 +1,102 @@
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { db } from './firebase';
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch } from 'firebase/firestore';
 
 export default function MigrateUsers() {
-  useEffect(() => {
-    const migrate = async () => {
+  const [log, setLog] = useState<string[]>([]);
+  const [running, setRunning] = useState(false);
+
+  const checkDuplicates = async () => {
+    setRunning(true);
+    setLog([]);
+    const lines: string[] = ['--- PROVJERA DUPLIKATA ---'];
+    try {
       const usersSnap = await getDocs(collection(db, 'users'));
+      const pinMap: Record<string, { name: string; id: string }[]> = {};
 
-      usersSnap.forEach(async (userDoc) => {
-        const userData = userDoc.data();
-        if (!userData.fullName && userData.name) {
-          // Ako nema fullName, postavi ga kao name
-          const userRef = doc(db, 'users', userDoc.id);
-          await updateDoc(userRef, {
-            fullName: userData.name,
-          });
-          console.log(`✅ Full name dodan za korisnika: ${userData.name}`);
-        } else {
-          console.log(`ℹ️ Već ima full name: ${userData.fullName || userData.name}`);
+      for (const userDoc of usersSnap.docs) {
+        const d = userDoc.data();
+        if (d.pin) {
+          if (!pinMap[d.pin]) pinMap[d.pin] = [];
+          pinMap[d.pin].push({ name: d.name || d.fullName || '?', id: userDoc.id });
         }
-      });
+      }
 
-      console.log('✅ Migracija korisnika završena.');
-    };
+      let found = 0;
+      for (const [pin, users] of Object.entries(pinMap)) {
+        if (users.length > 1) {
+          lines.push(`⛔ PIN ${pin}: ${users.map(u => u.name).join(' + ')}`);
+          found++;
+        }
+      }
 
-    migrate();
-  }, []);
+      if (found === 0) lines.push('✅ Nema duplikata.');
+      else lines.push(`\nUkupno: ${found} duplikat(a).`);
+    } catch (err: any) {
+      lines.push(`❌ Greška: ${err.message}`);
+    }
+    setLog(lines);
+    setRunning(false);
+  };
+
+  const migratePins = async () => {
+    setRunning(true);
+    setLog([]);
+    const lines: string[] = ['--- MIGRACIJA PINova u pins kolekciju ---'];
+    try {
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const pinMap: Record<string, string[]> = {};
+
+      for (const userDoc of usersSnap.docs) {
+        const pin = userDoc.data().pin;
+        if (pin) {
+          if (!pinMap[pin]) pinMap[pin] = [];
+          pinMap[pin].push(userDoc.id);
+        }
+      }
+
+      const batch = writeBatch(db);
+      let migrated = 0;
+      let skipped = 0;
+
+      for (const [pin, userIds] of Object.entries(pinMap)) {
+        if (userIds.length > 1) {
+          lines.push(`⛔ DUPLIKAT PIN ${pin} — preskočeno, treba ručno riješiti.`);
+          skipped++;
+          continue;
+        }
+        batch.set(doc(db, 'pins', pin), { userId: userIds[0] });
+        lines.push(`✅ PIN ${pin} → ${userIds[0]}`);
+        migrated++;
+      }
+
+      await batch.commit();
+      lines.push(`\nGotovo: ${migrated} migriranih, ${skipped} preskočenih.`);
+    } catch (err: any) {
+      lines.push(`❌ Greška: ${err.message}`);
+    }
+    setLog(lines);
+    setRunning(false);
+  };
 
   return (
-    <div style={{ padding: "2rem", textAlign: "center" }}>
-      <h2>Migracija korisnika...</h2>
-      <p>Provjeravam i nadopunjavam korisnike u bazi.</p>
+    <div style={{ padding: "2rem", fontFamily: "monospace" }}>
+      <h2>Migracija / Provjera PINova</h2>
+      <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
+        <button onClick={checkDuplicates} disabled={running}
+          style={{ padding: "0.5rem 1rem", cursor: "pointer" }}>
+          🔍 Provjeri duplikate
+        </button>
+        <button onClick={migratePins} disabled={running}
+          style={{ padding: "0.5rem 1rem", cursor: "pointer" }}>
+          ⚙️ Migiraj PINove u pins kolekciju
+        </button>
+      </div>
+      {log.length > 0 && (
+        <pre style={{ background: "#f0f0f0", padding: "1rem", borderRadius: "8px", whiteSpace: "pre-wrap" }}>
+          {log.join('\n')}
+        </pre>
+      )}
     </div>
   );
 }

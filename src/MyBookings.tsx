@@ -188,7 +188,7 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
             } else if (isToday) {
               const timeDiffHours =
                 (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-              canCancel = timeDiffHours >= 2;
+              canCancel = timeDiffHours >= 3;
             }
 
             return (

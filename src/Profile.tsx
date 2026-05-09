@@ -6,6 +6,8 @@ import {
   getDocs,
   doc,
   updateDoc,
+  runTransaction,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { onSnapshot } from "firebase/firestore";
@@ -73,7 +75,7 @@ export default function Profile() {
       return;
     }
 
-    // Check uniqueness
+    // Brza provjera — hvata stare PINove koji nisu još u pins kolekciji
     const uniqueQ = query(collection(db, "users"), where("pin", "==", pinInput));
     const uniqueSnap = await getDocs(uniqueQ);
     if (uniqueSnap.docs.some((d) => d.id !== docId)) {
@@ -81,15 +83,28 @@ export default function Profile() {
       return;
     }
 
-    // Save
-    await updateDoc(doc(db, "users", docId), { pin: pinInput });
+    // Atomska rezervacija PINa — sprječava race condition
+    // pins/{pin} dokument osigurava da dva korisnika ne mogu dobiti isti PIN
+    const pinDocRef = doc(db, "pins", pinInput);
+    const oldPinDocRef = currentPin ? doc(db, "pins", currentPin) : null;
+    const userDocRef = doc(db, "users", docId);
 
-    // Post-save race-condition safety net
-    const recheckSnap = await getDocs(uniqueQ);
-    if (recheckSnap.docs.length > 1) {
-      await updateDoc(doc(db, "users", docId), { pin: null });
-      setCurrentPin(null);
-      setPinStatus("⛔ Taj PIN je upravo zauzet. Pokušajte ponovno.");
+    try {
+      await runTransaction(db, async (t) => {
+        const pinSnap = await t.get(pinDocRef);
+        if (pinSnap.exists() && pinSnap.data().userId !== docId) {
+          throw new Error("pin_taken");
+        }
+        if (oldPinDocRef) t.delete(oldPinDocRef);
+        t.set(pinDocRef, { userId: docId });
+        t.update(userDocRef, { pin: pinInput });
+      });
+    } catch (err: any) {
+      setPinStatus(
+        err.message === "pin_taken"
+          ? "⛔ Taj PIN je već zauzet. Odaberite drugi."
+          : "⛔ Greška pri spremanju PIN-a. Pokušajte ponovno."
+      );
       return;
     }
 
@@ -99,7 +114,10 @@ export default function Profile() {
   };
 
   const handleRemovePin = async () => {
-    await updateDoc(doc(db, "users", docId), { pin: null });
+    const batch = writeBatch(db);
+    if (currentPin) batch.delete(doc(db, "pins", currentPin));
+    batch.update(doc(db, "users", docId), { pin: null });
+    await batch.commit();
     setCurrentPin(null);
     setPinInput("");
     setPinStatus("PIN uklonjen.");

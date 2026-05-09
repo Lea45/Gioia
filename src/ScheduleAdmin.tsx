@@ -258,7 +258,6 @@ export default function ScheduleAdmin() {
       await setDoc(doc(db, "sessions", "meta"), draftMetaDoc.data());
     }
 
-    setTimeout(() => setToastMessage(null), 3000);
     setView("sessions");
   };
 
@@ -464,7 +463,16 @@ export default function ScheduleAdmin() {
         </>
       )}
 
-      {toastMessage && <div className="custom-toast">{toastMessage}</div>}
+      {toastMessage && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <p style={{ textAlign: "center", marginBottom: "1rem" }}>{toastMessage}</p>
+            <button style={{ display: "block", margin: "0 auto" }} onClick={() => setToastMessage(null)}>
+              U redu
+            </button>
+          </div>
+        </div>
+      )}
 
       {confirmDelete && (
         <div className="modal-overlay">
