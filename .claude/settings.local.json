@@ -17,7 +17,10 @@
       "Bash(ls:*)",
       "Bash(gcloud builds log:*)",
       "Bash(firebase login:*)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(firebase --version)",
+      "Bash(firebase use *)",
+      "Bash(firebase hosting:sites:list)"
     ]
   }
 }

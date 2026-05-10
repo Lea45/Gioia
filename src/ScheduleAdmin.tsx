@@ -66,6 +66,7 @@ export default function ScheduleAdmin() {
   );
 
   const [noteInput, setNoteInput] = useState("");
+  const [showPublishSuccess, setShowPublishSuccess] = useState(false);
 
   const saveNoteForDay = async (date: string, text: string) => {
     await setDoc(doc(db, "draftScheduleNotes", date), { text });
@@ -115,6 +116,12 @@ export default function ScheduleAdmin() {
 
   useEffect(() => {
     fetchSessions();
+  }, [view]);
+
+  useEffect(() => {
+    const id = setInterval(fetchSessions, 30000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
   const deleteSession = async (id: string) => {
@@ -211,54 +218,56 @@ export default function ScheduleAdmin() {
   };
 
   const publishSchedule = async () => {
-    const draftSnap = await getDocs(collection(db, "draftSchedule"));
-    const draftTerms = draftSnap.docs
-      .filter((doc) => doc.id !== "meta")
-      .map((doc) => doc.data());
+    setIsLoading(true);
+    try {
+      const draftSnap = await getDocs(collection(db, "draftSchedule"));
+      const draftTerms = draftSnap.docs
+        .filter((doc) => doc.id !== "meta")
+        .map((doc) => doc.data());
 
-    const notesSnap = await getDocs(collection(db, "draftScheduleNotes"));
-    const notesByDate: Record<string, string> = {};
-    notesSnap.forEach((noteDoc) => {
-      notesByDate[noteDoc.id] = noteDoc.data().text;
-    });
+      const notesSnap = await getDocs(collection(db, "draftScheduleNotes"));
+      const notesByDate: Record<string, string> = {};
+      notesSnap.forEach((noteDoc) => {
+        notesByDate[noteDoc.id] = noteDoc.data().text;
+      });
 
-    const draftTermsWithDescriptions = draftTerms.map((term) => ({
-      ...term,
-      description: notesByDate[term.date] || "",
-    }));
+      const draftTermsWithDescriptions = draftTerms.map((term) => ({
+        ...term,
+        description: notesByDate[term.date] || "",
+      }));
 
-    const currentSessions = await getDocs(collection(db, "sessions"));
-    await Promise.all(
-      currentSessions.docs.map((d) => deleteDoc(doc(db, "sessions", d.id)))
-    );
-    await Promise.all(
-      draftTermsWithDescriptions.map((term) =>
-        addDoc(collection(db, "sessions"), term)
-      )
-    );
+      const currentSessions = await getDocs(collection(db, "sessions"));
+      await Promise.all(
+        currentSessions.docs.map((d) => deleteDoc(doc(db, "sessions", d.id)))
+      );
+      await Promise.all(
+        draftTermsWithDescriptions.map((term) =>
+          addDoc(collection(db, "sessions"), term)
+        )
+      );
 
-    // 🔁 Kopiraj opise iz draftScheduleNotes u sessionsNotes
-    const currentNotes = await getDocs(collection(db, "sessionsNotes"));
+      const currentNotes = await getDocs(collection(db, "sessionsNotes"));
+      await Promise.all(
+        currentNotes.docs.map((d) => deleteDoc(doc(db, "sessionsNotes", d.id)))
+      );
+      await Promise.all(
+        notesSnap.docs.map((d) =>
+          setDoc(doc(db, "sessionsNotes", d.id), { text: d.data().text })
+        )
+      );
 
-    // Obrisi sve stare sessionsNotes
-    await Promise.all(
-      currentNotes.docs.map((d) => deleteDoc(doc(db, "sessionsNotes", d.id)))
-    );
+      const draftMetaDoc = await getDoc(doc(db, "draftSchedule", "meta"));
+      if (draftMetaDoc.exists()) {
+        await setDoc(doc(db, "sessions", "meta"), draftMetaDoc.data());
+      }
 
-    // Dodaj nove
-    await Promise.all(
-      notesSnap.docs.map((d) =>
-        setDoc(doc(db, "sessionsNotes", d.id), { text: d.data().text })
-      )
-    );
-
-    setToastMessage("Raspored je uspješno objavljen");
-    const draftMetaDoc = await getDoc(doc(db, "draftSchedule", "meta"));
-    if (draftMetaDoc.exists()) {
-      await setDoc(doc(db, "sessions", "meta"), draftMetaDoc.data());
+      setTimeout(() => setShowPublishSuccess(true), 300);
+    } catch (err) {
+      console.error("Greška pri objavljivanju rasporeda:", err);
+      setToastMessage("⛔ Greška pri objavljivanju. Pokušajte ponovno.");
+    } finally {
+      setIsLoading(false);
     }
-
-    setView("sessions");
   };
 
   const resetDefaultSchedule = async () => {
@@ -468,6 +477,25 @@ export default function ScheduleAdmin() {
           <div className="modal">
             <p style={{ textAlign: "center", marginBottom: "1rem" }}>{toastMessage}</p>
             <button style={{ display: "block", margin: "0 auto" }} onClick={() => setToastMessage(null)}>
+              U redu
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showPublishSuccess && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <p style={{ textAlign: "center", marginBottom: "1rem" }}>
+              ✅ Raspored je uspješno objavljen
+            </p>
+            <button
+              style={{ display: "block", margin: "0 auto" }}
+              onClick={() => {
+                setShowPublishSuccess(false);
+                setView("sessions");
+              }}
+            >
               U redu
             </button>
           </div>

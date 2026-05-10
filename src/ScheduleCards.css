@@ -133,6 +133,23 @@ button:focus {
   border-color: #ccc;
 }
 
+.session-card.past {
+  border-color: #e57373;
+  background-color: #fff5f5;
+  opacity: 0.75;
+}
+
+.session-card.past .session-info {
+  color: #c0392b;
+}
+
+.reserve-button.past {
+  background-color: #fdecea;
+  color: #c0392b;
+  border-color: #e57373;
+  cursor: not-allowed;
+}
+
 .cancel-button {
   background-color: #848b79;
   color: #ece5d1;

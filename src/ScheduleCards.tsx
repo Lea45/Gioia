@@ -178,6 +178,11 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     return dani[date.getDay()];
   };
 
+  const getShortDate = (dateStr: string) => {
+    const parts = dateStr.split(".");
+    return `${parseInt(parts[0])}.${parseInt(parts[1])}.`;
+  };
+
   const groupByDate = () => {
     const grouped: Record<string, Session[]> = {};
     sessions.forEach((s) => {
@@ -564,7 +569,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       {sortedDates.map((date) => (
         <div key={date} className="day-card">
           <button className="day-header" onClick={() => toggleDate(date)}>
-            <span>{getDayName(date)}</span>
+            <span>{getShortDate(date)} {getDayName(date)}</span>
             <span
               style={{
                 transition: "transform 0.3s",
@@ -595,10 +600,19 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                 );
                 const isFull = getRezervacijaZaSession(s.id).length >= s.maxSlots;
 
+                const now = new Date();
+                const [sd, sm, sy] = s.date.split(".");
+                const sDateISO = `${sy}-${sm.padStart(2, "0")}-${sd.padStart(2, "0")}`;
+                const sStartTime = s.time.split(/[-–]/)[0].trim();
+                const [sHours, sMinutes] = sStartTime.split(":").map(Number);
+                const sDateTime = new Date(sDateISO);
+                sDateTime.setHours(sHours, sMinutes, 0, 0);
+                const isPast = sDateTime.getTime() < now.getTime();
+
                 return (
                   <div
                     key={s.id}
-                    className="session-card"
+                    className={`session-card${isPast ? " past" : ""}`}
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <div className="session-info">
@@ -661,12 +675,14 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                       </>
                     ) : (
                       <button
-                        className={`reserve-button ${isFull ? "full" : ""}`}
-                        onClick={() => setConfirmSession(s)}
-                        disabled={reservingSessionId === s.id}
+                        className={`reserve-button ${isPast ? "past" : isFull ? "full" : ""}`}
+                        onClick={() => !isPast && setConfirmSession(s)}
+                        disabled={isPast || reservingSessionId === s.id}
                       >
                         {reservingSessionId === s.id
                           ? "Učitavanje..."
+                          : isPast
+                          ? "Termin je završio"
                           : isFull
                           ? "Lista čekanja"
                           : "Rezerviraj"}
