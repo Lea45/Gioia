@@ -108,20 +108,9 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     const visibleSessions = fetchedSessions.filter((session) => session.date);
 
     const notesSnap = await getDocs(collection(db, "sessionsNotes"));
-    const draftNotesSnap = await getDocs(collection(db, "draftScheduleNotes"));
     const notes: Record<string, string> = {};
     notesSnap.forEach((doc) => {
-      notes[doc.id] = doc.data().text;
-    });
-    draftNotesSnap.forEach((doc) => {
-      if (!notes[doc.id]) {
-        notes[doc.id] = doc.data().text;
-      }
-    });
-    visibleSessions.forEach((session) => {
-      if (!notes[session.date] && session.description?.trim()) {
-        notes[session.date] = session.description;
-      }
+      if (doc.data().text) notes[doc.id] = doc.data().text;
     });
     setDailyNotes(notes);
 
@@ -638,6 +627,11 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
                         {getRezervacijaZaSession(s.id).length}/{s.maxSlots}
                       </span>
                     </div>
+                    {s.description?.trim() && (
+                      <div className="session-description-client">
+                        {s.description}
+                      </div>
+                    )}
 
                     {reserved ? (
                       <>

@@ -9,6 +9,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  updateDoc,
 } from "firebase/firestore";
 import spinner from "./gears-spinner.svg";
 import DatePicker from "react-datepicker";
@@ -67,13 +68,33 @@ export default function ScheduleAdmin() {
 
   const [noteInput, setNoteInput] = useState("");
   const [showPublishSuccess, setShowPublishSuccess] = useState(false);
+  const [sessionDescModal, setSessionDescModal] = useState<{ id: string; date: string; time: string } | null>(null);
+  const [sessionDescInput, setSessionDescInput] = useState("");
 
   const saveNoteForDay = async (date: string, text: string) => {
-    await setDoc(doc(db, "draftScheduleNotes", date), { text });
-    await setDoc(doc(db, "sessionsNotes", date), { text });
-    setDailyNotes((prev) => ({ ...prev, [date]: text }));
+    if (text.trim()) {
+      if (view === "draft") {
+        await setDoc(doc(db, "draftScheduleNotes", date), { text });
+      }
+      await setDoc(doc(db, "sessionsNotes", date), { text });
+      setDailyNotes((prev) => ({ ...prev, [date]: text }));
+    } else {
+      await deleteDoc(doc(db, "draftScheduleNotes", date));
+      await deleteDoc(doc(db, "sessionsNotes", date));
+      setDailyNotes((prev) => { const next = { ...prev }; delete next[date]; return next; });
+    }
     setNoteModalDate(null);
     setNoteInput("");
+  };
+
+  const saveSessionDescription = async (sessionId: string, text: string) => {
+    const source = view === "draft" ? "draftSchedule" : "sessions";
+    await updateDoc(doc(db, source, sessionId), { description: text });
+    setSessions((prev) =>
+      prev.map((s) => (s.id === sessionId ? { ...s, description: text } : s))
+    );
+    setSessionDescModal(null);
+    setSessionDescInput("");
   };
 
   const fetchSessions = async () => {
@@ -107,9 +128,12 @@ export default function ScheduleAdmin() {
     if (view === "draft") {
       const notesSnap = await getDocs(collection(db, "draftScheduleNotes"));
       const notes: Record<string, string> = {};
-      notesSnap.forEach((doc) => {
-        notes[doc.id] = doc.data().text;
-      });
+      notesSnap.forEach((doc) => { notes[doc.id] = doc.data().text; });
+      setDailyNotes(notes);
+    } else if (view === "sessions") {
+      const notesSnap = await getDocs(collection(db, "sessionsNotes"));
+      const notes: Record<string, string> = {};
+      notesSnap.forEach((doc) => { notes[doc.id] = doc.data().text; });
       setDailyNotes(notes);
     }
   };
@@ -194,7 +218,8 @@ export default function ScheduleAdmin() {
 
       return {
         ...session,
-        date: formatDate(realDate), // sada stvarni datum npr. "14.05.2025."
+        date: formatDate(realDate),
+        description: "",
       };
     });
 
@@ -226,24 +251,13 @@ export default function ScheduleAdmin() {
         .map((doc) => doc.data());
 
       const notesSnap = await getDocs(collection(db, "draftScheduleNotes"));
-      const notesByDate: Record<string, string> = {};
-      notesSnap.forEach((noteDoc) => {
-        notesByDate[noteDoc.id] = noteDoc.data().text;
-      });
-
-      const draftTermsWithDescriptions = draftTerms.map((term) => ({
-        ...term,
-        description: notesByDate[term.date] || "",
-      }));
 
       const currentSessions = await getDocs(collection(db, "sessions"));
       await Promise.all(
         currentSessions.docs.map((d) => deleteDoc(doc(db, "sessions", d.id)))
       );
       await Promise.all(
-        draftTermsWithDescriptions.map((term) =>
-          addDoc(collection(db, "sessions"), term)
-        )
+        draftTerms.map((term) => addDoc(collection(db, "sessions"), term))
       );
 
       const currentNotes = await getDocs(collection(db, "sessionsNotes"));
@@ -365,7 +379,7 @@ export default function ScheduleAdmin() {
         </button>
       </div>
 
-      {view === "sessions" && currentLabel && (
+{view === "sessions" && currentLabel && (
         <div style={{ textAlign: "center", margin: "1rem 0" }}>
           <div
             style={{
@@ -667,12 +681,16 @@ export default function ScheduleAdmin() {
       {noteModalDate && (
         <div className="modal-overlay">
           <div className="modal">
-            <h4>Opis za {formatDay(noteModalDate)}</h4>
+            <h4>Opis dana — {formatDay(noteModalDate)}</h4>
+            <p style={{ fontSize: "0.85rem", color: "#888", marginBottom: "0.5rem" }}>
+              Prazno = obriši opis
+            </p>
             <textarea
               value={noteInput}
               onChange={(e) => setNoteInput(e.target.value)}
               rows={4}
               style={{ width: "100%", marginBottom: "1rem" }}
+              placeholder="Npr. 19:00 Stretch, 17:00 Beginner..."
             />
             <button
               onClick={() => saveNoteForDay(noteModalDate, noteInput)}
@@ -681,6 +699,31 @@ export default function ScheduleAdmin() {
               Spremi
             </button>
             <button onClick={() => setNoteModalDate(null)}>Odustani</button>
+          </div>
+        </div>
+      )}
+
+      {sessionDescModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h4>Opis termina — {formatDay(sessionDescModal.date)}, {sessionDescModal.time}</h4>
+            <p style={{ fontSize: "0.85rem", color: "#888", marginBottom: "0.5rem" }}>
+              Prazno = obriši opis
+            </p>
+            <textarea
+              value={sessionDescInput}
+              onChange={(e) => setSessionDescInput(e.target.value)}
+              rows={3}
+              style={{ width: "100%", marginBottom: "1rem" }}
+              placeholder="Npr. Stretch, Beginner, Reformer..."
+            />
+            <button
+              onClick={() => saveSessionDescription(sessionDescModal.id, sessionDescInput)}
+              style={{ marginRight: "0.5rem" }}
+            >
+              Spremi
+            </button>
+            <button onClick={() => setSessionDescModal(null)}>Odustani</button>
           </div>
         </div>
       )}
@@ -723,8 +766,9 @@ export default function ScheduleAdmin() {
                         setNoteInput(dailyNotes[date] || "");
                       }}
                     >
-                      📝 Dodaj opis
+                      Opis dana
                     </button>
+
                     <button
                       className="add-button-small"
                       style={{
@@ -751,6 +795,27 @@ export default function ScheduleAdmin() {
                   </>
                 )}
 
+                {view === "sessions" && (
+                  <>
+                    <button
+                      className="add-button-small"
+                      style={{ marginBottom: "0.5rem" }}
+                      onClick={() => {
+                        setNoteModalDate(date);
+                        setNoteInput(dailyNotes[date] || "");
+                      }}
+                    >
+                      Opis dana
+                    </button>
+
+                    {dailyNotes[date] && (
+                      <div className="daily-note-box">
+                        <em>{dailyNotes[date]}</em>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 {[...list]
                   .sort((a, b) => {
                     const getMinutes = (time: string) => {
@@ -766,19 +831,36 @@ export default function ScheduleAdmin() {
                     <div key={s.id} className="session-item-admin">
                       <span>
                         {s.time} ({getBrojRezervacija(s.id)}/{s.maxSlots})
+                        {s.description && (
+                          <em style={{ marginLeft: "0.5rem", color: "#888", fontSize: "0.85em" }}>
+                            — {s.description}
+                          </em>
+                        )}
                       </span>
 
-                      <button
-                        onClick={() =>
-                          setConfirmDelete({
-                            id: s.id,
-                            date: s.date,
-                            time: s.time,
-                          })
-                        }
-                      >
-                        Obriši
-                      </button>
+                      <div style={{ display: "flex", gap: "0.4rem" }}>
+                        {(view === "draft" || view === "sessions") && (
+                          <button
+                            onClick={() => {
+                              setSessionDescModal({ id: s.id, date: s.date, time: s.time });
+                              setSessionDescInput(s.description || "");
+                            }}
+                          >
+                            Opis
+                          </button>
+                        )}
+                        <button
+                          onClick={() =>
+                            setConfirmDelete({
+                              id: s.id,
+                              date: s.date,
+                              time: s.time,
+                            })
+                          }
+                        >
+                          Obriši
+                        </button>
+                      </div>
                     </div>
                   ))}
 

@@ -208,3 +208,16 @@ button:focus {
   color: #444;
   margin-top: 5px;
 }
+
+.session-description-client {
+  display: inline-block;
+  background-color: #848b79;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 20px;
+  margin-top: 8px;
+  margin-bottom: 10px;
+  letter-spacing: 0.03em;
+}
