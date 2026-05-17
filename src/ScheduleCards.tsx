@@ -207,30 +207,33 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     );
     let userDocRef: ReturnType<typeof doc> | null = null;
 
-    if (!userSnap.empty) {
-      const userDoc = userSnap.docs[0];
-      const userData = userDoc.data();
-      userDocRef = doc(db, "users", userDoc.id);
-      const current = userData.remainingVisits ?? 0;
-      const validUntilRaw = userData.validUntil;
+    if (userSnap.empty) {
+      onShowPopup("⛔ Vaš račun nije pronađen. Obratite se trenerici.");
+      return;
+    }
 
-      let validUntilDate: Date | null = null;
+    const userDoc = userSnap.docs[0];
+    const userData = userDoc.data();
+    userDocRef = doc(db, "users", userDoc.id);
+    const current = userData.remainingVisits ?? 0;
+    const validUntilRaw = userData.validUntil;
 
-      if (validUntilRaw) {
-        if (typeof validUntilRaw.toDate === "function") {
-          validUntilDate = validUntilRaw.toDate();
-        } else {
-          validUntilDate = new Date(validUntilRaw);
-        }
+    let validUntilDate: Date | null = null;
+
+    if (validUntilRaw) {
+      if (typeof validUntilRaw.toDate === "function") {
+        validUntilDate = validUntilRaw.toDate();
+      } else {
+        validUntilDate = new Date(validUntilRaw);
       }
+    }
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      if (current <= -1 || (validUntilDate && validUntilDate < today)) {
-        onShowPopup("⛔ Vaši dolasci su istekli. Uplatite nove dolaske.");
-        return;
-      }
+    if (current <= -1 || (validUntilDate && validUntilDate < today)) {
+      onShowPopup("⛔ Vaši dolasci su istekli. Uplatite nove dolaske.");
+      return;
     }
 
     // Provjeri je li termin već počeo
@@ -429,7 +432,8 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     const existing = reservations.find(
       (r) =>
         r.phone === phone &&
-        r.sessionId === session.id &&
+        r.date === session.date &&
+        r.time === session.time &&
         r.status !== "otkazano"
     );
     if (!existing) return;
@@ -585,7 +589,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
               .sort((a, b) => a.time.localeCompare(b.time))
               .map((s, index) => {
                 const reserved = reservations.find(
-                  (r) => r.phone === phone && r.sessionId === s.id
+                  (r) => r.phone === phone && r.date === s.date && r.time === s.time
                 );
                 const isFull = getRezervacijaZaSession(s.id).length >= s.maxSlots;
 

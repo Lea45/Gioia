@@ -10,6 +10,7 @@ import {
   setDoc,
   getDoc,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import spinner from "./gears-spinner.svg";
 import DatePicker from "react-datepicker";
@@ -72,15 +73,12 @@ export default function ScheduleAdmin() {
   const [sessionDescInput, setSessionDescInput] = useState("");
 
   const saveNoteForDay = async (date: string, text: string) => {
+    const notesCollection = view === "draft" ? "draftScheduleNotes" : "sessionsNotes";
     if (text.trim()) {
-      if (view === "draft") {
-        await setDoc(doc(db, "draftScheduleNotes", date), { text });
-      }
-      await setDoc(doc(db, "sessionsNotes", date), { text });
+      await setDoc(doc(db, notesCollection, date), { text });
       setDailyNotes((prev) => ({ ...prev, [date]: text }));
     } else {
-      await deleteDoc(doc(db, "draftScheduleNotes", date));
-      await deleteDoc(doc(db, "sessionsNotes", date));
+      await deleteDoc(doc(db, notesCollection, date));
       setDailyNotes((prev) => { const next = { ...prev }; delete next[date]; return next; });
     }
     setNoteModalDate(null);
@@ -203,11 +201,10 @@ export default function ScheduleAdmin() {
     };
 
     const formatDate = (date: Date) => {
-      return date.toLocaleDateString("hr-HR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
+      const d = String(date.getDate()).padStart(2, "0");
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const y = date.getFullYear();
+      return `${d}.${m}.${y}.`;
     };
 
     const updatedSessions = templateSessions.map((session) => {
@@ -245,35 +242,38 @@ export default function ScheduleAdmin() {
   const publishSchedule = async () => {
     setIsLoading(true);
     try {
-      const draftSnap = await getDocs(collection(db, "draftSchedule"));
+      // Svi reads paralelno prije nego što krenemo s pisanjem
+      const [draftSnap, notesSnap, currentSessions, currentNotes, draftMetaDoc] =
+        await Promise.all([
+          getDocs(collection(db, "draftSchedule")),
+          getDocs(collection(db, "draftScheduleNotes")),
+          getDocs(collection(db, "sessions")),
+          getDocs(collection(db, "sessionsNotes")),
+          getDoc(doc(db, "draftSchedule", "meta")),
+        ]);
+
       const draftTerms = draftSnap.docs
-        .filter((doc) => doc.id !== "meta")
-        .map((doc) => doc.data());
+        .filter((d) => d.id !== "meta")
+        .map((d) => d.data());
 
-      const notesSnap = await getDocs(collection(db, "draftScheduleNotes"));
+      // Jedan batch — ili sve uspije, ili ništa se ne promijeni
+      const batch = writeBatch(db);
 
-      const currentSessions = await getDocs(collection(db, "sessions"));
-      await Promise.all(
-        currentSessions.docs.map((d) => deleteDoc(doc(db, "sessions", d.id)))
-      );
-      await Promise.all(
-        draftTerms.map((term) => addDoc(collection(db, "sessions"), term))
-      );
+      currentSessions.docs.forEach((d) => batch.delete(d.ref));
+      draftTerms.forEach((term) => batch.set(doc(collection(db, "sessions")), term));
 
-      const currentNotes = await getDocs(collection(db, "sessionsNotes"));
-      await Promise.all(
-        currentNotes.docs.map((d) => deleteDoc(doc(db, "sessionsNotes", d.id)))
-      );
-      await Promise.all(
-        notesSnap.docs.map((d) =>
-          setDoc(doc(db, "sessionsNotes", d.id), { text: d.data().text })
-        )
+      currentNotes.docs.forEach((d) => batch.delete(d.ref));
+      notesSnap.docs.forEach((d) =>
+        batch.set(doc(db, "sessionsNotes", d.id), { text: d.data().text })
       );
 
-      const draftMetaDoc = await getDoc(doc(db, "draftSchedule", "meta"));
       if (draftMetaDoc.exists()) {
-        await setDoc(doc(db, "sessions", "meta"), draftMetaDoc.data());
+        batch.set(doc(db, "sessions", "meta"), draftMetaDoc.data());
+      } else if (currentLabel) {
+        batch.set(doc(db, "sessions", "meta"), { label: currentLabel });
       }
+
+      await batch.commit();
 
       setTimeout(() => setShowPublishSuccess(true), 300);
     } catch (err) {
@@ -337,9 +337,9 @@ export default function ScheduleAdmin() {
     ];
     return dani[date.getDay()];
   };
-  const getBrojRezervacija = (sessionId: string) =>
+  const getBrojRezervacija = (session: Session) =>
     reservations.filter(
-      (r) => r.sessionId === sessionId && r.status === "rezervirano"
+      (r) => r.date === session.date && r.time === session.time && r.status === "rezervirano"
     ).length;
 
   const grouped: Record<string, Session[]> = sessions.reduce((acc, s) => {
@@ -429,9 +429,13 @@ export default function ScheduleAdmin() {
                   const end = new Date(adjustedStart);
                   end.setDate(adjustedStart.getDate() + 6);
 
-                  const label = `${adjustedStart.toLocaleDateString(
-                    "hr-HR"
-                  )} - ${end.toLocaleDateString("hr-HR")}`;
+                  const fmt = (date: Date) => {
+                    const d = String(date.getDate()).padStart(2, "0");
+                    const m = String(date.getMonth() + 1).padStart(2, "0");
+                    const y = date.getFullYear();
+                    return `${d}.${m}.${y}.`;
+                  };
+                  const label = `${fmt(adjustedStart)} - ${fmt(end)}`;
                   setLabelInput(label);
                 }}
                 dateFormat="dd.MM.yyyy"
@@ -745,9 +749,9 @@ export default function ScheduleAdmin() {
                 daniRedoslijed.indexOf(a[0]) - daniRedoslijed.indexOf(b[0])
               );
             } else {
-              const da = new Date(a[0].split(".").reverse().join("-"));
-              const db = new Date(b[0].split(".").reverse().join("-"));
-              return da.getTime() - db.getTime();
+              const dateA = new Date(a[0].split(".").reverse().join("-"));
+              const dateB = new Date(b[0].split(".").reverse().join("-"));
+              return dateA.getTime() - dateB.getTime();
             }
           })
           .map(([date, list]) => {
@@ -830,7 +834,7 @@ export default function ScheduleAdmin() {
                   .map((s) => (
                     <div key={s.id} className="session-item-admin">
                       <span>
-                        {s.time} ({getBrojRezervacija(s.id)}/{s.maxSlots})
+                        {s.time} ({getBrojRezervacija(s)}/{s.maxSlots})
                         {s.description && (
                           <em style={{ marginLeft: "0.5rem", color: "#888", fontSize: "0.85em" }}>
                             — {s.description}

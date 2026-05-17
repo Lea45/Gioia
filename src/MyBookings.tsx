@@ -45,55 +45,64 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
     if (!phone) return;
     setLoading(true);
 
-    // Dohvati rezervacije
-    const snap = await getDocs(
-      query(collection(db, "reservations"), where("phone", "==", phone))
-    );
-    const fetched = snap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Booking[];
+    try {
+      const snap = await getDocs(
+        query(collection(db, "reservations"), where("phone", "==", phone))
+      );
+      const fetched = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Booking[];
 
-    const now = new Date();
+      const now = new Date();
 
-    const futureBookings = fetched.filter((b) => {
-      if (b.status === "otkazano") return false;
-      const [d, m, y] = b.date.split(".");
-      const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-      const rawTime = b.time.split(/[-–]/)[0].trim();
-      const [hours, minutes] = rawTime.split(":").map(Number);
-      const date = new Date(dateISO);
-      date.setHours(hours, minutes, 0, 0);
-      return date.getTime() >= now.getTime();
-    });
+      const futureBookings = fetched.filter((b) => {
+        if (b.status === "otkazano") return false;
+        const [d, m, y] = b.date.split(".");
+        const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+        const rawTime = b.time.split(/[-–]/)[0].trim();
+        const [hours, minutes] = rawTime.split(":").map(Number);
+        const date = new Date(dateISO);
+        date.setHours(hours, minutes, 0, 0);
+        return date.getTime() >= now.getTime();
+      });
 
-    // Svi termini sa statusom "rezervirano" idu u evidenciju dolazaka
-    // (čekanje ne ide dok se ne prebaci na rezervirano)
-    const past = fetched.filter((b) => b.status === "rezervirano");
+      const past = fetched.filter((b) => {
+        if (b.status !== "rezervirano") return false;
+        const [d, m, y] = b.date.split(".");
+        const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+        const rawTime = b.time.split(/[-–]/)[0].trim();
+        const [hours, minutes] = rawTime.split(":").map(Number);
+        const date = new Date(dateISO);
+        date.setHours(hours, minutes, 0, 0);
+        return date.getTime() < now.getTime();
+      });
+      const sortedPast = past.sort((a, b) => {
+        const [dA, mA, yA] = a.date.split(".");
+        const [dB, mB, yB] = b.date.split(".");
+        const dateA = new Date(`${yA}-${mA.padStart(2, "0")}-${dA.padStart(2, "0")}`);
+        const dateB = new Date(`${yB}-${mB.padStart(2, "0")}-${dB.padStart(2, "0")}`);
+        return dateB.getTime() - dateA.getTime();
+      });
 
-    // Sortiraj po datumu - najnoviji na vrhu
-    const sortedPast = past.sort((a, b) => {
-      const [dA, mA, yA] = a.date.split(".");
-      const [dB, mB, yB] = b.date.split(".");
-      const dateA = new Date(`${yA}-${mA.padStart(2, "0")}-${dA.padStart(2, "0")}`);
-      const dateB = new Date(`${yB}-${mB.padStart(2, "0")}-${dB.padStart(2, "0")}`);
-      return dateB.getTime() - dateA.getTime(); // Noviji prvi
-    });
+      setBookings(futureBookings);
+      setPastBookings(sortedPast);
 
-    setBookings(futureBookings);
-    setPastBookings(sortedPast);
-
-    // Dohvati aktivni tjedan
-    const metaDoc = await getDocs(
-      query(collection(db, "sessions"), where("__name__", "==", "meta"))
-    );
-    const meta = metaDoc.docs[0];
-    if (meta && meta.exists()) {
-      const data = meta.data();
-      if (data.label) setCurrentLabel(data.label);
+      const metaDoc = await getDocs(
+        query(collection(db, "sessions"), where("__name__", "==", "meta"))
+      );
+      const meta = metaDoc.docs[0];
+      if (meta && meta.exists()) {
+        const data = meta.data();
+        if (data.label) setCurrentLabel(data.label);
+      }
+    } catch (err) {
+      console.error("Greška pri dohvaćanju termina:", err);
+      setInfoModalMessage("⛔ Greška pri učitavanju termina. Pokušajte ponovno.");
+      setShowInfoModal(true);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -113,7 +122,12 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
       });
 
       if (!result.ok) {
-        console.error("Otkazivanje neuspješno:", result.reason);
+        const poruka =
+          result.reason === "TOO_LATE_TO_CANCEL"
+            ? "⛔ Prekasno za otkazivanje. Termin počinje za manje od 3 sata."
+            : "⛔ Otkazivanje nije uspjelo. Pokušajte ponovno.";
+        setInfoModalMessage(poruka);
+        setShowInfoModal(true);
         return;
       }
 

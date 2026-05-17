@@ -10,22 +10,20 @@ import {
   doc,
   query,
   orderBy,
-  limit,
-  startAfter,
-  QueryDocumentSnapshot,
+  where,
+  writeBatch,
+  serverTimestamp,
 } from "firebase/firestore";
 import "./UserManagement.css";
+import { normalizePhone } from "./utils/normalizePhone";
 
 // Koristi Firebase Function za slanje admin obavijesti (API ključ je siguran na serveru)
 const ADMIN_FUNCTION_URL = "/api/sendAdminNotification";
 
-const sendAdminNoticeToPhone = async (phone: string, message: string) => {
+const sendAdminNoticeToPhone = async (phone: string, message: string): Promise<boolean> => {
   try {
     const user = auth.currentUser;
-    if (!user) {
-      console.error("❌ Korisnik nije prijavljen");
-      return;
-    }
+    if (!user) return false;
     const token = await user.getIdToken();
 
     const response = await fetch(ADMIN_FUNCTION_URL, {
@@ -37,13 +35,18 @@ const sendAdminNoticeToPhone = async (phone: string, message: string) => {
       body: JSON.stringify({ phone, message }),
     });
 
-    const result = await response.json();
-    if (!response.ok) {
-      console.error("❌ Admin obavijest greška:", result);
-    }
-  } catch (err) {
-    console.error("❌ Admin obavijest greška:", err);
+    return response.ok;
+  } catch {
+    return false;
   }
+};
+
+const sendWithRetry = async (phone: string, message: string, maxAttempts = 3): Promise<boolean> => {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const ok = await sendAdminNoticeToPhone(phone, message);
+    if (ok) return true;
+  }
+  return false;
 };
 
 export default function UserManagement() {
@@ -83,15 +86,10 @@ export default function UserManagement() {
   const [userToDelete, setUserToDelete] = useState<{
     id: string;
     name: string;
+    phone: string;
   } | null>(null);
   const [newNotification, setNewNotification] = useState("");
-  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot | null>(
-    null
-  );
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-
-  const PAGE_SIZE = 5;
+  const [visibleCount, setVisibleCount] = useState(8);
 
   useEffect(() => {
     fetchUsers();
@@ -121,15 +119,6 @@ export default function UserManagement() {
     setShowConfirm(false);
   };
 
-  interface User {
-    id: string;
-    name: string;
-    phone: string;
-    pin: string | null;
-    remainingVisits: number;
-    validUntil: string;
-  }
-
   const docToUser = (doc: any): User => ({
     id: doc.id,
     name: doc.data().name,
@@ -140,58 +129,17 @@ export default function UserManagement() {
   });
 
   const fetchUsers = async () => {
-    const q = query(collection(db, "users"), orderBy("name"), limit(PAGE_SIZE));
-    const snapshot = await getDocs(q);
-    setUsers(snapshot.docs.map(docToUser));
-    setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-    setHasMore(snapshot.docs.length === PAGE_SIZE);
-  };
-
-  const fetchMoreUsers = async () => {
-    if (!lastVisible) return;
-    setLoadingMore(true);
-    const q = query(
-      collection(db, "users"),
-      orderBy("name"),
-      startAfter(lastVisible),
-      limit(PAGE_SIZE)
-    );
-    const snapshot = await getDocs(q);
-    setUsers((prev) => [...prev, ...snapshot.docs.map(docToUser)]);
-    setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-    setHasMore(snapshot.docs.length === PAGE_SIZE);
-    setLoadingMore(false);
-  };
-
-  const searchUsers = async (term: string) => {
     const q = query(collection(db, "users"), orderBy("name"));
     const snapshot = await getDocs(q);
-    const allUsers = snapshot.docs.map(docToUser);
-
-    const filtered = allUsers.filter(
-      (user) =>
-        user.name.toLowerCase().includes(term.toLowerCase()) ||
-        user.phone.includes(term)
-    );
-
-    setUsers(filtered);
-    setHasMore(false);
+    setUsers(snapshot.docs.map(docToUser));
   };
-
-  useEffect(() => {
-    if (searchTerm.trim()) {
-      searchUsers(searchTerm);
-    } else {
-      fetchUsers();
-    }
-  }, [searchTerm]);
 
   const handleAddUser = async () => {
     if (!newUserName.trim() || !newUserPhone.trim()) return;
     await addDoc(collection(db, "users"), {
       name: newUserName.trim(),
       fullName: newUserName.trim(),
-      phone: newUserPhone.trim(),
+      phone: normalizePhone(newUserPhone.trim()),
       active: true,
     });
 
@@ -202,13 +150,37 @@ export default function UserManagement() {
     fetchUsers();
   };
 
-  const confirmDeleteUser = (user: { id: string; name: string }) => {
+  const confirmDeleteUser = (user: { id: string; name: string; phone: string }) => {
     setUserToDelete(user);
   };
 
   const handleDeleteUserConfirmed = async () => {
     if (!userToDelete) return;
-    await deleteDoc(doc(db, "users", userToDelete.id));
+
+    const batch = writeBatch(db);
+
+    // Označi sve aktivne rezervacije kao otkazane (audit trail)
+    const resSnap = await getDocs(
+      query(
+        collection(db, "reservations"),
+        where("phone", "==", userToDelete.phone),
+      )
+    );
+    resSnap.docs.forEach((d) => {
+      const status = d.data().status;
+      if (status === "rezervirano" || status === "cekanje") {
+        batch.update(d.ref, {
+          status: "otkazano",
+          cancelledAt: serverTimestamp(),
+          refundReason: "user_deleted",
+          refunded: false,
+        });
+      }
+    });
+
+    batch.delete(doc(db, "users", userToDelete.id));
+    await batch.commit();
+
     setUserToDelete(null);
     fetchUsers();
   };
@@ -218,6 +190,7 @@ export default function UserManagement() {
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.phone.includes(searchTerm)
   );
+  const visibleUsers = filteredUsers.slice(0, visibleCount);
 
   const handleNotify = async () => {
     const trimmed = newNotification.trim();
@@ -233,15 +206,23 @@ export default function UserManagement() {
     const usersSnap = await getDocs(collection(db, "users"));
     const users = usersSnap.docs.map((doc) => doc.data());
 
-    // 3. Pošalji svakom korisniku poruku
+    // 3. Pošalji svakom korisniku poruku (automatski retry 2x)
+    const failed: string[] = [];
     for (const user of users) {
       if (user.phone) {
-        await sendAdminNoticeToPhone(user.phone, trimmed);
+        const ok = await sendWithRetry(user.phone, trimmed);
+        if (!ok) failed.push(user.name || user.phone);
       }
     }
 
-    setSuccessMessage(trimmed);
-    setSuccessType("notifikacija"); // <- DODANO OVDJE
+    const total = users.filter((u) => u.phone).length;
+    const sent = total - failed.length;
+    setSuccessMessage(
+      failed.length === 0
+        ? trimmed
+        : `Poslano: ${sent}/${total}\nNeuspješno: ${failed.join(", ")}`
+    );
+    setSuccessType("notifikacija");
     setShowSuccess(true);
     setNewNotification("");
   };
@@ -282,13 +263,13 @@ export default function UserManagement() {
             type="text"
             placeholder="Pretraži korisnika..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setVisibleCount(8); }}
             className="user-input"
           />
         </div>
 
         <div className="user-list">
-          {filteredUsers.map((user) => (
+          {visibleUsers.map((user) => (
             <div key={user.id} className="user-card">
               <div>
                 <div className="user-name">{user.name}</div>
@@ -321,13 +302,12 @@ export default function UserManagement() {
           ))}
         </div>
 
-        {hasMore && (
+        {visibleCount < filteredUsers.length && (
           <button
-            onClick={fetchMoreUsers}
             className="load-more-button"
-            disabled={loadingMore}
+            onClick={() => setVisibleCount((c) => c + 8)}
           >
-            {loadingMore ? "Učitavam..." : "Učitaj više"}
+            Učitaj više
           </button>
         )}
 
@@ -391,7 +371,7 @@ export default function UserManagement() {
               )}
               <div className="details-info-row">
                 <span className="details-info-label">PIN</span>
-                <span className="details-info-value">{selectedUser.pin ?? "Nije postavljeno"}</span>
+                <span className="details-info-value">{selectedUser.pin ? "Postavljeno" : "Nije postavljeno"}</span>
               </div>
             </div>
 
@@ -448,9 +428,10 @@ export default function UserManagement() {
         <div className="confirm-overlay">
           <div className="confirm-modal">
             {successType === "notifikacija" ? (
-              <p>
-                ✅ Obavijest je poslana korisnicima:
-                <br />"{successMessage}"
+              <p style={{ whiteSpace: "pre-line" }}>
+                {successMessage.startsWith("Poslano:")
+                  ? `⚠️ ${successMessage}`
+                  : `✅ Obavijest je poslana svim korisnicima.`}
               </p>
             ) : (
               <p>✅ {successMessage}</p>

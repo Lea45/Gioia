@@ -48,8 +48,7 @@ export default function StatusManagement() {
   useEffect(() => {
     const loadAll = async () => {
       setLoading(true);
-      await fetchSessions();
-      await fetchReservations();
+      await Promise.all([fetchSessions(), fetchReservations()]);
       setLoading(false);
     };
     loadAll();
@@ -82,29 +81,8 @@ export default function StatusManagement() {
 
   const refreshData = async () => {
     setLoading(true);
-    await fetchSessions();
-    await fetchReservations();
+    await Promise.all([fetchSessions(), fetchReservations()]);
     setLoading(false);
-  };
-
-  const fixOverbooking = async () => {
-    const sessionsSnap = await getDocs(collection(db, "sessions"));
-    let ukupno = 0;
-    for (const sessionDoc of sessionsSnap.docs) {
-      const session = sessionDoc.data();
-      const resSnap = await getDocs(query(collection(db, "reservations"), where("date", "==", session.date), where("time", "==", session.time), where("status", "==", "rezervirano")));
-      const rezervirano = resSnap.docs.sort((a, b) => a.data().createdAt?.toMillis() - b.data().createdAt?.toMillis());
-      if (rezervirano.length > session.maxSlots) {
-        const zaCekanje = rezervirano.slice(session.maxSlots);
-        const batch = writeBatch(db);
-        for (const res of zaCekanje) { batch.update(res.ref, { status: "cekanje" }); ukupno++; }
-        batch.update(sessionDoc.ref, { bookedSlots: session.maxSlots });
-        await batch.commit();
-      }
-    }
-    await refreshData();
-    setInfoModalMessage(ukupno > 0 ? `✅ Premješteno ${ukupno} na čekanje.` : "ℹ️ Nema prekoračenja.");
-    setShowInfoModal(true);
   };
 
 
@@ -117,11 +95,8 @@ export default function StatusManagement() {
     const year = parseInt(parts[2], 10);
     const date = new Date(year, month, day);
     if (isNaN(date.getTime())) return "NEPOZNAT DAN";
-    return date
-      .toLocaleDateString("hr-HR", {
-        weekday: "long",
-      })
-      .toUpperCase();
+    const dani = ["NEDJELJA", "PONEDJELJAK", "UTORAK", "SRIJEDA", "ČETVRTAK", "PETAK", "SUBOTA"];
+    return dani[date.getDay()];
   };
 
   const groupedSessions = sessions.reduce(

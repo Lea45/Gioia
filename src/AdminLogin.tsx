@@ -37,6 +37,7 @@ export default function AdminLogin({
   }, []);
 
   const handleLogin = () => {
+    if (!codeInput.trim() || !adminCode) return;
     setLoading(true);
     setStatus("");
 
@@ -55,7 +56,7 @@ export default function AdminLogin({
   return (
     <div className="login-container">
       <input
-        type="password" // 👈 maskirano unos
+        type="password"
         placeholder="Unesi admin kod"
         value={codeInput}
         onChange={(e) => {
@@ -66,8 +67,12 @@ export default function AdminLogin({
           if (e.key === "Enter") handleLogin();
         }}
         className="login-input"
+        autoComplete="new-password"
+        autoCorrect="off"
+        autoCapitalize="off"
+        translate="no"
       />
-      <button onClick={handleLogin} className="login-button" disabled={loading}>
+      <button onClick={handleLogin} className="login-button" disabled={loading || !codeInput.trim()}>
         {loading ? "Prijava..." : "Prijavi se"}
       </button>
       <button onClick={onBackToHome} className="login-back-button">

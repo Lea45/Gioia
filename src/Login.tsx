@@ -8,18 +8,7 @@ type LoginProps = {
   onBackToHome: () => void;
 };
 
-// Normalizira broj telefona u međunarodni format (38591...)
-// Podržava: 091..., 0911..., +38591..., 38591...
-const normalizePhone = (phone: string): string => {
-  let cleaned = phone.replace(/\s+/g, "").replace(/^\+/, "");
-
-  // Ako počinje s 0, zamijeni s 385
-  if (cleaned.startsWith("0")) {
-    cleaned = "385" + cleaned.slice(1);
-  }
-
-  return cleaned;
-};
+import { normalizePhone } from "./utils/normalizePhone";
 
 export default function Login({ onLoginSuccess, onBackToHome }: LoginProps) {
   const [loginMethod, setLoginMethod] = useState<"pin" | "phone">("pin");

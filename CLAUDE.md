@@ -60,5 +60,5 @@ Dva načina: PIN (4 znamenke) ili broj telefona. Oba postavljaju iste localStora
 - Svi datumi su u formatu `"DD.MM.YYYY."` (s točkom na kraju)
 - Vremena su u formatu `"HH:MM - HH:MM"`
 - WhatsApp notifikacije idu preko server-side Firebase Function (NE direktno iz klijenta)
-- 2h pravilo: korisnik ne može otkazati manje od 2h prije termina (gumb disabled u UI-ju)
+- 3h pravilo: korisnik ne može otkazati manje od 3h prije termina (gumb disabled u UI-ju)
 - Otkazivanje je dostupno SAMO iz "Moji termini" taba (namjerno)

@@ -8,9 +8,9 @@ import {
   updateDoc,
   runTransaction,
   writeBatch,
+  onSnapshot,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { onSnapshot } from "firebase/firestore";
 
 import {
   FaPhone,
@@ -23,10 +23,10 @@ import {
 import "./Profile.css";
 
 export default function Profile() {
-  const storedPhone = localStorage.getItem("phone");
-  const [phone, setPhone] = useState(storedPhone || "");
+  const userId = localStorage.getItem("userId") || "";
+  const [phone, setPhone] = useState(localStorage.getItem("phone") || "");
   const [name, setName] = useState("");
-  const [docId, setDocId] = useState("");
+  const [docId, setDocId] = useState(userId);
   const [remainingVisits, setRemainingVisits] = useState<number | null>(null);
   const [validUntil, setValidUntil] = useState("");
 
@@ -36,23 +36,28 @@ export default function Profile() {
   const [pinStatus, setPinStatus] = useState("");
 
   useEffect(() => {
-    if (!phone) return;
+    if (!userId) return;
 
-    const q = query(collection(db, "users"), where("phone", "==", phone));
-    const unsubscribe = onSnapshot(q, (snap) => {
-      if (!snap.empty) {
-        const userDoc = snap.docs[0];
-        const userData = userDoc.data();
+    const userRef = doc(db, "users", userId);
+    const unsubscribe = onSnapshot(userRef, (snap) => {
+      if (snap.exists()) {
+        const userData = snap.data();
         setName(userData.name || "");
-        setDocId(userDoc.id);
+        setDocId(snap.id);
         setRemainingVisits(userData.remainingVisits ?? null);
         setValidUntil(userData.validUntil ?? "");
         setCurrentPin(userData.pin ?? null);
+
+        // Sinkroniziraj telefon s bazom i localStorage
+        if (userData.phone && userData.phone !== localStorage.getItem("phone")) {
+          setPhone(userData.phone);
+          localStorage.setItem("phone", userData.phone);
+        }
       }
     });
 
     return () => unsubscribe();
-  }, [phone]);
+  }, [userId]);
 
   const handleLogout = () => {
     localStorage.removeItem("phone");

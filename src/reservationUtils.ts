@@ -52,6 +52,21 @@ export async function cancelReservation(
     };
   }
 
+  // Provjeri 3h pravilo — ista logika kao UI, ali sad i server-side
+  const [d, m, y] = resData.date.split(".").map((s: string) => parseInt(s));
+  const startTime = resData.time.split(/[-–]/)[0].trim();
+  const [sessionHours, sessionMinutes] = startTime.split(":").map(Number);
+  const sessionDateTime = new Date(y, m - 1, d, sessionHours, sessionMinutes, 0, 0);
+  const now = new Date();
+  if ((sessionDateTime.getTime() - now.getTime()) / (1000 * 60 * 60) < 3) {
+    return {
+      ok: false,
+      refunded: false,
+      reason: "TOO_LATE_TO_CANCEL",
+      promotedPhone: null,
+    };
+  }
+
   // 2) Pronađi user dokument (preko userId ako postoji, inače preko phone)
   let userDocId: string | null = null;
 
@@ -75,6 +90,11 @@ export async function cancelReservation(
   // 3) Atomska transakcija
   // VAŽNO: Firestore zahtijeva da svi transaction.get() pozivi budu PRIJE bilo kojeg write poziva
   await runTransaction(db, async (t) => {
+    // Reset na svaki retry — sprječava stale vrijednosti iz prethodnog pokušaja
+    promotedPhone = null;
+    refunded = false;
+    refundReason = "";
+
     // ===== FAZA 1: SVI READS =====
     const resSnapTx = await t.get(reservationRef);
     const resTxData = resSnapTx.data();
