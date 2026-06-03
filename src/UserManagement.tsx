@@ -11,11 +11,11 @@ import {
   query,
   orderBy,
   where,
-  writeBatch,
-  serverTimestamp,
 } from "firebase/firestore";
 import "./UserManagement.css";
 import { normalizePhone } from "./utils/normalizePhone";
+import { cancelReservation } from "./reservationUtils";
+import { sendWhatsAppMessage } from "./ScheduleCards";
 
 // Koristi Firebase Function za slanje admin obavijesti (API ključ je siguran na serveru)
 const ADMIN_FUNCTION_URL = "/api/sendAdminNotification";
@@ -157,29 +157,31 @@ export default function UserManagement() {
   const handleDeleteUserConfirmed = async () => {
     if (!userToDelete) return;
 
-    const batch = writeBatch(db);
-
-    // Označi sve aktivne rezervacije kao otkazane (audit trail)
+    // Dohvati aktivne rezervacije korisnika
     const resSnap = await getDocs(
       query(
         collection(db, "reservations"),
         where("phone", "==", userToDelete.phone),
+        where("status", "in", ["rezervirano", "cekanje"]),
       )
     );
-    resSnap.docs.forEach((d) => {
-      const status = d.data().status;
-      if (status === "rezervirano" || status === "cekanje") {
-        batch.update(d.ref, {
-          status: "otkazano",
-          cancelledAt: serverTimestamp(),
-          refundReason: "user_deleted",
-          refunded: false,
-        });
-      }
-    });
 
-    batch.delete(doc(db, "users", userToDelete.id));
-    await batch.commit();
+    // Za svaku aktivnu rezervaciju: atomski otkaži, oslobodi slot, promiči čekaliste
+    const promotedPhones: string[] = [];
+    for (const resDoc of resSnap.docs) {
+      const result = await cancelReservation(resDoc.id, { force: true });
+      if (result.promotedPhone) {
+        promotedPhones.push(result.promotedPhone);
+      }
+    }
+
+    // Obriši korisnika
+    await deleteDoc(doc(db, "users", userToDelete.id));
+
+    // Pošalji WhatsApp svima koji su promaknuti s čekanja
+    for (const phone of promotedPhones) {
+      sendWhatsAppMessage(phone).catch(() => {});
+    }
 
     setUserToDelete(null);
     fetchUsers();
@@ -345,8 +347,12 @@ export default function UserManagement() {
             placeholder="Unesi obavijest..."
             value={newNotification}
             onChange={(e) => setNewNotification(e.target.value)}
+            maxLength={1024}
             className="notification-input"
           />
+          <div style={{ fontSize: "0.75rem", color: newNotification.length > 900 ? "#c0392b" : "#888", textAlign: "right" }}>
+            {newNotification.length}/1024
+          </div>
           <button className="notify-button" onClick={handleNotify}>
             Pošalji
           </button>

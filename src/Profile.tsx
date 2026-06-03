@@ -61,6 +61,8 @@ export default function Profile() {
 
   const handleLogout = () => {
     localStorage.removeItem("phone");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userName");
     window.location.reload();
   };
 

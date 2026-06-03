@@ -14,7 +14,6 @@ import {
   serverTimestamp,
   increment,
 } from "firebase/firestore";
-import { cancelReservation } from "./reservationUtils";
 import "./ScheduleCards.css";
 import ConfirmPopup from "./ConfirmPopup";
 
@@ -77,9 +76,7 @@ type Props = {
 
 const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
   const [confirmSession, setConfirmSession] = useState<Session | null>(null);
-  const [confirmCancelSession, setConfirmCancelSession] =
-    useState<Session | null>(null);
-  const [sessions, setSessions] = useState<Session[]>([]);
+const [sessions, setSessions] = useState<Session[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [label, setLabel] = useState<string>("");
@@ -251,7 +248,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       return;
     }
 
-    const adminPhone = "20181804";
+    const multiBookPhones = ["20181804", "385995324490"];
 
     // Provjera duplikata za ovaj termin (lokalna)
     const already = reservations.find(
@@ -266,8 +263,8 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
       return;
     }
 
-    // Provjera duplikata na isti dan (osim admina)
-    if (phone !== adminPhone) {
+    // Provjera duplikata na isti dan (osim privilegiranih)
+    if (!multiBookPhones.includes(phone)) {
       const sameDayReservation = reservations.find(
         (r) =>
           r.phone === phone &&
@@ -324,8 +321,8 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
             throw new Error("ALREADY_RESERVED");
           }
 
-          // Provjera duplikata za isti dan (osim admina)
-          if (phone !== adminPhone) {
+          // Provjera duplikata za isti dan (osim privilegiranih)
+          if (!multiBookPhones.includes(phone)) {
             const sameDayRes = await getDocs(
               query(
                 collection(db, "reservations"),
@@ -341,18 +338,10 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
             }
           }
 
-          const existingResSnap = await getDocs(
-            query(
-              collection(db, "reservations"),
-              where("date", "==", session.date),
-              where("time", "==", session.time),
-              where("status", "==", "rezervirano")
-            )
-          );
-
-          const brojRezervacija = existingResSnap.size;
+          // bookedSlots je transakcijsko čitanje (transaction.get(sessionRef)) —
+          // transakcija se retry-a pri konfliktu, pa je ovo atomski sigurno
           const status: "rezervirano" | "cekanje" =
-            brojRezervacija < sessionData.maxSlots ? "rezervirano" : "cekanje";
+            sessionData.bookedSlots < sessionData.maxSlots ? "rezervirano" : "cekanje";
 
           // ===== FAZA 2: SVI WRITES =====
           const newReservationRef = doc(collection(db, "reservations"));
@@ -371,9 +360,12 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
             visitDeductedAt: userDocRef ? serverTimestamp() : null,
           });
 
-          transaction.update(sessionRef, {
-            bookedSlots: increment(1),
-          });
+          // Inkrementiraj bookedSlots samo za potvrđena mjesta, ne za čekanje
+          if (status === "rezervirano") {
+            transaction.update(sessionRef, {
+              bookedSlots: increment(1),
+            });
+          }
 
           // ATOMSKI smanji remainingVisits (read je već obavljen gore)
           if (userDocRef && userSnapTx) {
@@ -407,11 +399,14 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
         );
       }
 
-      setInfoModalMessage(
-        status === "rezervirano"
-          ? `✅ Rezervirali ste termin:\n${session.date}\n${session.time}`
-          : `🕐 Dodani ste na listu čekanja:\n${session.date}\n${session.time}`
-      );
+      if (status === "cekanje") {
+        const waitlistPosition = [...reservations, newReservation].filter(
+          (r) => r.date === session.date && r.time === session.time && r.status === "cekanje"
+        ).length;
+        setInfoModalMessage(`🕐 Dodani ste na listu čekanja:\n${session.date}\n${session.time}\n${waitlistPosition}. ste po redu.`);
+      } else {
+        setInfoModalMessage(`✅ Rezervirali ste termin:\n${session.date}\n${session.time}`);
+      }
       setShowInfoModal(true);
       fetchData(false);
     } catch (error: any) {
@@ -428,41 +423,6 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
     }
   };
 
-  const cancel = async (session: Session) => {
-    const existing = reservations.find(
-      (r) =>
-        r.phone === phone &&
-        r.date === session.date &&
-        r.time === session.time &&
-        r.status !== "otkazano"
-    );
-    if (!existing) return;
-
-    try {
-      const result = await cancelReservation(existing.id);
-
-      if (!result.ok) {
-        onShowPopup("⛔ Greška pri otkazivanju.");
-        return;
-      }
-
-      // Pošalji WhatsApp ako je netko promaknut s čekanja
-      if (result.promotedPhone) {
-        await sendWhatsAppMessage(result.promotedPhone);
-      }
-
-      setInfoModalMessage(
-        result.refunded
-          ? `Otkazali ste termin:\n${session.date}\n${session.time}\nDolazak je vraćen.`
-          : `Otkazali ste termin:\n${session.date}\n${session.time}`
-      );
-      setShowInfoModal(true);
-      fetchData(false);
-    } catch (err) {
-      console.error("❌ Greška pri otkazivanju:", err);
-      onShowPopup("⛔ Greška pri otkazivanju. Pokušajte ponovno.");
-    }
-  };
 
   const getRezervacijaZaSession = (sessionId: string) => {
     const session = sessions.find((s) => s.id === sessionId);
@@ -510,26 +470,7 @@ const ScheduleCards = ({ onReservationMade, onShowPopup }: Props) => {
         </div>
       )}
 
-      {confirmCancelSession && (
-        <ConfirmPopup
-          message={
-            <>
-              <strong>Otkazati termin?</strong>
-              <br />
-              {confirmCancelSession?.date}
-              <br />
-              {confirmCancelSession?.time}
-            </>
-          }
-          onConfirm={() => {
-            cancel(confirmCancelSession!);
-            setConfirmCancelSession(null);
-          }}
-          onCancel={() => setConfirmCancelSession(null)}
-        />
-      )}
-
-      {confirmSession && (
+{confirmSession && (
         <ConfirmPopup
           message={
             <>

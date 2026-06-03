@@ -26,7 +26,8 @@ export type CancelResult = {
  * - Sve unutar jedne Firestore transakcije
  */
 export async function cancelReservation(
-  reservationId: string
+  reservationId: string,
+  options?: { force?: boolean }
 ): Promise<CancelResult> {
   // 1) Dohvati rezervaciju (izvan transakcije za brzu provjeru)
   const reservationRef = doc(db, "reservations", reservationId);
@@ -52,19 +53,20 @@ export async function cancelReservation(
     };
   }
 
-  // Provjeri 3h pravilo — ista logika kao UI, ali sad i server-side
-  const [d, m, y] = resData.date.split(".").map((s: string) => parseInt(s));
-  const startTime = resData.time.split(/[-–]/)[0].trim();
-  const [sessionHours, sessionMinutes] = startTime.split(":").map(Number);
-  const sessionDateTime = new Date(y, m - 1, d, sessionHours, sessionMinutes, 0, 0);
-  const now = new Date();
-  if ((sessionDateTime.getTime() - now.getTime()) / (1000 * 60 * 60) < 3) {
-    return {
-      ok: false,
-      refunded: false,
-      reason: "TOO_LATE_TO_CANCEL",
-      promotedPhone: null,
-    };
+  if (!options?.force) {
+    const [d, m, y] = resData.date.split(".").map((s: string) => parseInt(s));
+    const startTime = resData.time.split(/[-–]/)[0].trim();
+    const [sessionHours, sessionMinutes] = startTime.split(":").map(Number);
+    const sessionDateTime = new Date(y, m - 1, d, sessionHours, sessionMinutes, 0, 0);
+    const now = new Date();
+    if ((sessionDateTime.getTime() - now.getTime()) / (1000 * 60 * 60) < 3) {
+      return {
+        ok: false,
+        refunded: false,
+        reason: "TOO_LATE_TO_CANCEL",
+        promotedPhone: null,
+      };
+    }
   }
 
   // 2) Pronađi user dokument (preko userId ako postoji, inače preko phone)

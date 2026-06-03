@@ -118,7 +118,7 @@ export default function StatusManagement() {
         const [day, month, year] = res.date
           .split(".")
           .map((x) => parseInt(x, 10));
-        const [startHour] = res.time.split(" - ");
+        const startHour = res.time.split(/[-–]/)[0].trim();
         const [hour, minute] = startHour.split(":").map(Number);
 
         const resDate = new Date(year, month - 1, day, hour, minute);
@@ -305,6 +305,9 @@ export default function StatusManagement() {
                         const reservationCount = relatedReservations.filter(
                           (r) => r.status === "rezervirano"
                         ).length;
+                        const waitlistCount = relatedReservations.filter(
+                          (r) => r.status === "cekanje"
+                        ).length;
 
                         return (
                           <div key={session.id} className="session-item">
@@ -320,13 +323,10 @@ export default function StatusManagement() {
                             >
                               <div className="time-text">{session.time}</div>
                               <div className="reservation-count">
-                                ({reservationCount}{" "}
-                                {reservationCount === 1 ||
-                                reservationCount === 0 ||
-                                reservationCount >= 5
-                                  ? "rezervacija"
-                                  : "rezervacije"}
-                                )
+                                <div>Rezervirano: {reservationCount}</div>
+                                {waitlistCount > 0 && (
+                                  <div>Lista čekanja: {waitlistCount}</div>
+                                )}
                               </div>
                             </div>
 

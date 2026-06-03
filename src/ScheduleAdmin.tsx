@@ -11,6 +11,10 @@ import {
   getDoc,
   updateDoc,
   writeBatch,
+  query,
+  where,
+  serverTimestamp,
+  increment,
 } from "firebase/firestore";
 import spinner from "./gears-spinner.svg";
 import DatePicker from "react-datepicker";
@@ -54,13 +58,18 @@ export default function ScheduleAdmin() {
     date: string;
     time: string;
   } | null>(null);
+  const [confirmDeleteWithCancellations, setConfirmDeleteWithCancellations] = useState<{
+    id: string;
+    date: string;
+    time: string;
+    count: number;
+  } | null>(null);
   const [confirmPublish, setConfirmPublish] = useState(false);
   const [confirmPullTemplate, setConfirmPullTemplate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showMissingLabelModal, setShowMissingLabelModal] = useState(false);
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [dailyNotes, setDailyNotes] = useState<Record<string, string>>({});
-  const [disabledDays, setDisabledDays] = useState<string[]>([]);
 
   const [noteModalDate, setNoteModalDate] = useState<string | null>(null);
   const [confirmDisableDay, setConfirmDisableDay] = useState<string | null>(
@@ -155,6 +164,84 @@ export default function ScheduleAdmin() {
         : "sessions";
     await deleteDoc(doc(db, source, id));
     fetchSessions();
+  };
+
+  const deleteSessionAndCancelAll = async (sessionId: string, date: string, time: string) => {
+    setIsLoading(true);
+    try {
+      const resSnap = await getDocs(
+        query(
+          collection(db, "reservations"),
+          where("date", "==", date),
+          where("time", "==", time),
+          where("status", "in", ["rezervirano", "cekanje"])
+        )
+      );
+
+      const batch = writeBatch(db);
+
+      for (const resDoc of resSnap.docs) {
+        const resData = resDoc.data();
+        const visitDeducted = resData.visitDeducted !== false;
+
+        batch.update(resDoc.ref, {
+          status: "otkazano",
+          cancelledAt: serverTimestamp(),
+          refunded: visitDeducted,
+          refundReason: "session_deleted",
+          ...(visitDeducted ? { refundedAt: serverTimestamp() } : {}),
+        });
+
+        if (visitDeducted) {
+          let userRef = resData.userId
+            ? doc(db, "users", resData.userId)
+            : null;
+
+          if (!userRef) {
+            const userSnap = await getDocs(
+              query(collection(db, "users"), where("phone", "==", resData.phone))
+            );
+            if (!userSnap.empty) userRef = userSnap.docs[0].ref;
+          }
+
+          if (userRef) {
+            batch.update(userRef, { remainingVisits: increment(1) });
+          }
+        }
+      }
+
+      batch.delete(doc(db, "sessions", sessionId));
+      await batch.commit();
+
+      setConfirmDeleteWithCancellations(null);
+      fetchSessions();
+      setToastMessage(
+        resSnap.size > 0
+          ? `✅ Termin obrisan. ${resSnap.size} rezervacija otkazano i dolasci vraćeni.`
+          : "✅ Termin obrisan."
+      );
+    } catch (err) {
+      console.error("Greška pri brisanju termina:", err);
+      setToastMessage("⛔ Greška pri brisanju termina. Pokušajte ponovno.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const disableDay = async (date: string) => {
+    const source = view === "draft" ? "draftSchedule" : "sessions";
+    const snapshot = await getDocs(collection(db, source));
+    const sessionsForDay = snapshot.docs.filter((d) => d.data().date === date);
+    await Promise.all(sessionsForDay.map((d) => updateDoc(d.ref, { active: false })));
+    await fetchSessions();
+  };
+
+  const enableDay = async (date: string) => {
+    const source = view === "draft" ? "draftSchedule" : "sessions";
+    const snapshot = await getDocs(collection(db, source));
+    const sessionsForDay = snapshot.docs.filter((d) => d.data().date === date);
+    await Promise.all(sessionsForDay.map((d) => updateDoc(d.ref, { active: true })));
+    await fetchSessions();
   };
 
   const addSession = async (date: string) => {
@@ -253,7 +340,7 @@ export default function ScheduleAdmin() {
         ]);
 
       const draftTerms = draftSnap.docs
-        .filter((d) => d.id !== "meta")
+        .filter((d) => d.id !== "meta" && d.data().active !== false)
         .map((d) => d.data());
 
       // Jedan batch — ili sve uspije, ili ništa se ne promijeni
@@ -263,9 +350,12 @@ export default function ScheduleAdmin() {
       draftTerms.forEach((term) => batch.set(doc(collection(db, "sessions")), term));
 
       currentNotes.docs.forEach((d) => batch.delete(d.ref));
-      notesSnap.docs.forEach((d) =>
-        batch.set(doc(db, "sessionsNotes", d.id), { text: d.data().text })
-      );
+      notesSnap.docs.forEach((d) => {
+        const text = d.data().text;
+        if (text !== undefined) {
+          batch.set(doc(db, "sessionsNotes", d.id), { text });
+        }
+      });
 
       if (draftMetaDoc.exists()) {
         batch.set(doc(db, "sessions", "meta"), draftMetaDoc.data());
@@ -545,6 +635,47 @@ export default function ScheduleAdmin() {
         </div>
       )}
 
+      {confirmDeleteWithCancellations && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <p>
+              Termin{" "}
+              <strong>
+                {formatDay(confirmDeleteWithCancellations.date)},{" "}
+                {confirmDeleteWithCancellations.time}
+              </strong>{" "}
+              ima{" "}
+              <strong>{confirmDeleteWithCancellations.count}</strong>{" "}
+              aktivnih rezervacija.
+              <br />
+              <br />
+              Svima će biti otkazano i vraćeni dolasci.
+              <br />
+              Jesi li sigurna?
+            </p>
+            <button
+              onClick={() =>
+                deleteSessionAndCancelAll(
+                  confirmDeleteWithCancellations.id,
+                  confirmDeleteWithCancellations.date,
+                  confirmDeleteWithCancellations.time
+                )
+              }
+              style={{
+                marginRight: "0.5rem",
+                backgroundColor: "#e74c3c",
+                color: "white",
+              }}
+            >
+              Da, otkaži sve i obriši
+            </button>
+            <button onClick={() => setConfirmDeleteWithCancellations(null)}>
+              Odustani
+            </button>
+          </div>
+        </div>
+      )}
+
       {confirmPullTemplate && (
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
           <div className="modal">
@@ -620,32 +751,18 @@ export default function ScheduleAdmin() {
         <div className="modal-overlay">
           <div className="modal">
             <p>
-              Jesi li sigurna da želiš onemogućiti sve termine za dan:
-              <br />
+              Sakriti sve termine za dan{" "}
               <strong>{formatDay(confirmDisableDay)}</strong>?
+              <br />
+              <span style={{ fontSize: "0.85rem", color: "#666" }}>
+                Termini neće biti obrisani — možeš ih vratiti gumbom "Vrati dan".
+              </span>
             </p>
             <button
               onClick={async () => {
                 if (!confirmDisableDay) return;
-
-                const source =
-                  view === "template"
-                    ? "defaultSchedule"
-                    : view === "draft"
-                    ? "draftSchedule"
-                    : "sessions";
-
-                const snapshot = await getDocs(collection(db, source));
-                const sessionsZaDan = snapshot.docs.filter(
-                  (doc) => doc.data().date === confirmDisableDay
-                );
-
-                await Promise.all(
-                  sessionsZaDan.map((doc) => deleteDoc(doc.ref))
-                );
-
+                await disableDay(confirmDisableDay);
                 setConfirmDisableDay(null);
-                await fetchSessions();
               }}
               style={{
                 marginRight: "0.5rem",
@@ -653,7 +770,7 @@ export default function ScheduleAdmin() {
                 color: "white",
               }}
             >
-              Da, onemogući
+              Da, sakrij
             </button>
             <button onClick={() => setConfirmDisableDay(null)}>Odustani</button>
           </div>
@@ -749,49 +866,59 @@ export default function ScheduleAdmin() {
                 daniRedoslijed.indexOf(a[0]) - daniRedoslijed.indexOf(b[0])
               );
             } else {
-              const dateA = new Date(a[0].split(".").reverse().join("-"));
-              const dateB = new Date(b[0].split(".").reverse().join("-"));
-              return dateA.getTime() - dateB.getTime();
+              const parseDate = (s: string) => { const [d, m, y] = s.split(".").map(Number); return new Date(y, m - 1, d); };
+              return parseDate(a[0]).getTime() - parseDate(b[0]).getTime();
             }
           })
           .map(([date, list]) => {
-            if (view === "draft" && disabledDays.includes(date)) return null;
+            const isDayDisabled =
+              view === "draft" &&
+              list.length > 0 &&
+              list.every((s) => s.active === false);
             return (
               <div key={date} className="session-group">
-                <h4>{view === "template" ? date : formatDay(date)}</h4>
+                <h4 style={isDayDisabled ? { opacity: 0.45 } : undefined}>
+                  {view === "template" ? date : formatDay(date)}
+                </h4>
 
                 {view === "draft" && (
                   <>
-                    <button
-                      className="add-button-small"
-                      style={{ marginBottom: "0.5rem" }}
-                      onClick={() => {
-                        setNoteModalDate(date);
-                        setNoteInput(dailyNotes[date] || "");
-                      }}
-                    >
-                      Opis dana
-                    </button>
+                    {!isDayDisabled && (
+                      <button
+                        className="add-button-small"
+                        style={{ marginBottom: "0.5rem" }}
+                        onClick={() => {
+                          setNoteModalDate(date);
+                          setNoteInput(dailyNotes[date] || "");
+                        }}
+                      >
+                        Opis dana
+                      </button>
+                    )}
 
-                    <button
-                      className="add-button-small"
-                      style={{
-                        marginBottom: "0.5rem",
-                        backgroundColor: "#e74c3c",
-                        color: "white",
-                      }}
-                      onClick={() => {
-                        if (!disabledDays.includes(date)) {
-                          setConfirmDisableDay(date);
-                        }
-                      }}
-                    >
-                      {disabledDays.includes(date)
-                        ? "♻️ Vrati dan"
-                        : "🚫 Onemogući dan"}
-                    </button>
+                    {isDayDisabled ? (
+                      <button
+                        className="add-button-small"
+                        style={{ marginBottom: "0.5rem" }}
+                        onClick={() => enableDay(date)}
+                      >
+                        ♻️ Vrati dan
+                      </button>
+                    ) : (
+                      <button
+                        className="add-button-small"
+                        style={{
+                          marginBottom: "0.5rem",
+                          backgroundColor: "#e74c3c",
+                          color: "white",
+                        }}
+                        onClick={() => setConfirmDisableDay(date)}
+                      >
+                        🚫 Onemogući dan
+                      </button>
+                    )}
 
-                    {dailyNotes[date] && (
+                    {!isDayDisabled && dailyNotes[date] && (
                       <div className="daily-note-box">
                         <em>{dailyNotes[date]}</em>
                       </div>
@@ -820,7 +947,7 @@ export default function ScheduleAdmin() {
                   </>
                 )}
 
-                {[...list]
+                {!isDayDisabled && [...list]
                   .sort((a, b) => {
                     const getMinutes = (time: string) => {
                       const [h, m] = time
@@ -854,13 +981,26 @@ export default function ScheduleAdmin() {
                           </button>
                         )}
                         <button
-                          onClick={() =>
-                            setConfirmDelete({
-                              id: s.id,
-                              date: s.date,
-                              time: s.time,
-                            })
-                          }
+                          onClick={() => {
+                            if (view === "sessions") {
+                              const activeCount = reservations.filter(
+                                (r: any) =>
+                                  r.date === s.date &&
+                                  r.time === s.time &&
+                                  (r.status === "rezervirano" || r.status === "cekanje")
+                              ).length;
+                              if (activeCount > 0) {
+                                setConfirmDeleteWithCancellations({
+                                  id: s.id,
+                                  date: s.date,
+                                  time: s.time,
+                                  count: activeCount,
+                                });
+                                return;
+                              }
+                            }
+                            setConfirmDelete({ id: s.id, date: s.date, time: s.time });
+                          }}
                         >
                           Obriši
                         </button>
@@ -868,7 +1008,7 @@ export default function ScheduleAdmin() {
                     </div>
                   ))}
 
-                {(view === "draft" ||
+                {!isDayDisabled && (view === "draft" ||
                   view === "template" ||
                   view === "sessions") && (
                   <>
