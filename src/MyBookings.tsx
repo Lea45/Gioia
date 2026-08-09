@@ -211,6 +211,11 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
                   <span>{booking.date}</span>
                   <span>{booking.time}</span>
                 </div>
+                {["20181804", "385995324490"].includes(phone ?? "") && booking.name && (
+                  <div style={{ fontSize: "14px", color: "#555", marginBottom: "4px", paddingLeft: "2px" }}>
+                    👤 {booking.name}
+                  </div>
+                )}
                 <div className="booking-status">
                   {booking.status === "rezervirano" ? (
                     <span className="status-tag reserved">
@@ -303,6 +308,11 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
                     <span>{booking.date}</span>
                     <span>{booking.time}</span>
                   </div>
+                  {["20181804", "385995324490"].includes(phone ?? "") && booking.name && (
+                    <div style={{ fontSize: "14px", color: "#555", marginBottom: "4px", paddingLeft: "2px" }}>
+                      👤 {booking.name}
+                    </div>
+                  )}
                   <div className="booking-status">
                     <span className="status-tag past-reserved">
                       <FaCheckCircle style={{ marginRight: "6px" }} />

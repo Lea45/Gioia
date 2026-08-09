@@ -26,8 +26,9 @@ import {
 } from "react-icons/fa";
 import spinner from "./gears-spinner.svg";
 
-// Koristi Firebase Function za slanje WhatsApp poruka (API ključ je siguran na serveru)
 const FUNCTION_URL = "/api/sendWhatsAppNotification";
+
+const multiBookPhones = ["20181804", "385995324490"];
 
 export const sendWhatsAppMessage = async (rawPhone: string) => {
   try {
@@ -90,6 +91,8 @@ const [sessions, setSessions] = useState<Session[]>([]);
   const [initialLoad, setInitialLoad] = useState(true);
   const [dailyNotes, setDailyNotes] = useState<Record<string, string>>({});
   const [reservingSessionId, setReservingSessionId] = useState<string | null>(null);
+  const [nameInputSession, setNameInputSession] = useState<Session | null>(null);
+  const [nameInputValue, setNameInputValue] = useState("");
 
   const fetchData = async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
@@ -192,7 +195,7 @@ const [sessions, setSessions] = useState<Session[]>([]);
     setExpandedDate((prev) => (prev === date ? null : date));
   };
 
-  const reserve = async (session: Session) => {
+  const reserve = async (session: Session, guestName?: string) => {
     if (!phone || !name) {
       onShowPopup("📱 Prijavite se.");
       return;
@@ -248,19 +251,19 @@ const [sessions, setSessions] = useState<Session[]>([]);
       return;
     }
 
-    const multiBookPhones = ["20181804", "385995324490"];
-
-    // Provjera duplikata za ovaj termin (lokalna)
-    const already = reservations.find(
-      (r) =>
-        r.date === session.date &&
-        r.time === session.time &&
-        r.phone === phone &&
-        r.status !== "otkazano"
-    );
-    if (already) {
-      onShowPopup("⛔ Već ste prijavljeni na ovaj termin.");
-      return;
+    // Provjera duplikata za ovaj termin (lokalna) — preskočiti za privilegirane
+    if (!multiBookPhones.includes(phone)) {
+      const already = reservations.find(
+        (r) =>
+          r.date === session.date &&
+          r.time === session.time &&
+          r.phone === phone &&
+          r.status !== "otkazano"
+      );
+      if (already) {
+        onShowPopup("⛔ Već ste prijavljeni na ovaj termin.");
+        return;
+      }
     }
 
     // Provjera duplikata na isti dan (osim privilegiranih)
@@ -305,20 +308,22 @@ const [sessions, setSessions] = useState<Session[]>([]);
             userSnapTx = await transaction.get(userDocRef);
           }
 
-          // Provjera duplikata za isti termin
-          const userExistingRes = await getDocs(
-            query(
-              collection(db, "reservations"),
-              where("date", "==", session.date),
-              where("time", "==", session.time),
-              where("phone", "==", phone)
-            )
-          );
-          const hasActiveReservation = userExistingRes.docs.some(
-            (d) => d.data().status !== "otkazano"
-          );
-          if (hasActiveReservation) {
-            throw new Error("ALREADY_RESERVED");
+          // Provjera duplikata za isti termin — preskočiti za privilegirane
+          if (!multiBookPhones.includes(phone)) {
+            const userExistingRes = await getDocs(
+              query(
+                collection(db, "reservations"),
+                where("date", "==", session.date),
+                where("time", "==", session.time),
+                where("phone", "==", phone)
+              )
+            );
+            const hasActiveReservation = userExistingRes.docs.some(
+              (d) => d.data().status !== "otkazano"
+            );
+            if (hasActiveReservation) {
+              throw new Error("ALREADY_RESERVED");
+            }
           }
 
           // Provjera duplikata za isti dan (osim privilegiranih)
@@ -348,7 +353,7 @@ const [sessions, setSessions] = useState<Session[]>([]);
 
           transaction.set(newReservationRef, {
             phone,
-            name,
+            name: guestName ?? name,
             sessionId: session.id,
             date: session.date,
             time: session.time,
@@ -489,6 +494,111 @@ const [sessions, setSessions] = useState<Session[]>([]);
         />
       )}
 
+      {nameInputSession && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.2)",
+            backdropFilter: "blur(4px)",
+            zIndex: 1000,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <div
+            style={{
+              background: "#848B78",
+              color: "white",
+              padding: "2rem",
+              borderRadius: "1rem",
+              boxShadow: "0 0 15px rgba(0,0,0,0.3)",
+              fontSize: "20px",
+              fontWeight: 500,
+              textAlign: "center",
+              maxWidth: "90%",
+              width: "320px",
+              animation: "fadeIn 0.3s ease-out",
+            }}
+          >
+            <p style={{ marginBottom: "0.5rem" }}>
+              <strong>Za koga rezervirati?</strong>
+            </p>
+            <p style={{ fontSize: "16px", marginBottom: "1rem" }}>
+              {nameInputSession.date}<br />{nameInputSession.time}
+            </p>
+            <input
+              type="text"
+              placeholder="Ime i prezime"
+              value={nameInputValue}
+              onChange={(e) => setNameInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && nameInputValue.trim()) {
+                  const s = nameInputSession;
+                  const n = nameInputValue.trim();
+                  setNameInputSession(null);
+                  setNameInputValue("");
+                  reserve(s, n);
+                }
+                if (e.key === "Escape") {
+                  setNameInputSession(null);
+                  setNameInputValue("");
+                }
+              }}
+              autoFocus
+              style={{
+                width: "100%",
+                padding: "0.5rem 0.75rem",
+                borderRadius: "0.5rem",
+                border: "none",
+                fontSize: "18px",
+                marginBottom: "1rem",
+                boxSizing: "border-box",
+              }}
+            />
+            <div style={{ display: "flex", justifyContent: "center", gap: "1rem" }}>
+              <button
+                onClick={() => { setNameInputSession(null); setNameInputValue(""); }}
+                style={{
+                  backgroundColor: "#dbe4d0",
+                  padding: "0.5rem 1rem",
+                  borderRadius: "0.5rem",
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  margin: "10px",
+                }}
+              >
+                Odustani
+              </button>
+              <button
+                disabled={!nameInputValue.trim()}
+                onClick={() => {
+                  const s = nameInputSession;
+                  const n = nameInputValue.trim();
+                  setNameInputSession(null);
+                  setNameInputValue("");
+                  reserve(s, n);
+                }}
+                style={{
+                  backgroundColor: nameInputValue.trim() ? "#4caf50" : "#aaa",
+                  color: "white",
+                  padding: "0.5rem 1rem",
+                  borderRadius: "0.5rem",
+                  border: "none",
+                  cursor: nameInputValue.trim() ? "pointer" : "not-allowed",
+                  fontWeight: 600,
+                  margin: "10px",
+                }}
+              >
+                Potvrdi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showInfoModal && (
         <ConfirmPopup
           message={infoModalMessage}
@@ -529,9 +639,11 @@ const [sessions, setSessions] = useState<Session[]>([]);
             ]
               .sort((a, b) => a.time.localeCompare(b.time))
               .map((s, index) => {
-                const reserved = reservations.find(
-                  (r) => r.phone === phone && r.date === s.date && r.time === s.time
-                );
+                const reserved = multiBookPhones.includes(phone ?? "")
+                  ? undefined
+                  : reservations.find(
+                      (r) => r.phone === phone && r.date === s.date && r.time === s.time
+                    );
                 const isFull = getRezervacijaZaSession(s.id).length >= s.maxSlots;
 
                 const now = new Date();
@@ -615,7 +727,15 @@ const [sessions, setSessions] = useState<Session[]>([]);
                     ) : (
                       <button
                         className={`reserve-button ${isPast ? "past" : isFull ? "full" : ""}`}
-                        onClick={() => !isPast && setConfirmSession(s)}
+                        onClick={() => {
+                          if (isPast) return;
+                          if (multiBookPhones.includes(phone ?? "")) {
+                            setNameInputSession(s);
+                            setNameInputValue("");
+                          } else {
+                            setConfirmSession(s);
+                          }
+                        }}
                         disabled={isPast || reservingSessionId === s.id}
                       >
                         {reservingSessionId === s.id
