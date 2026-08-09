@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AnimatedCollapse from "./AnimatedCollapse";
 import { db } from "./firebase";
 import { runTransaction } from "firebase/firestore";
@@ -93,6 +93,22 @@ const [sessions, setSessions] = useState<Session[]>([]);
   const [reservingSessionId, setReservingSessionId] = useState<string | null>(null);
   const [nameInputSession, setNameInputSession] = useState<Session | null>(null);
   const [nameInputValue, setNameInputValue] = useState("");
+  const guestSubmitLockRef = useRef(false);
+
+  const submitGuestReservation = () => {
+    if (guestSubmitLockRef.current) return;
+    if (!nameInputSession || !nameInputValue.trim()) return;
+    guestSubmitLockRef.current = true;
+
+    const s = nameInputSession;
+    const n = nameInputValue.trim();
+    setNameInputSession(null);
+    setNameInputValue("");
+
+    reserve(s, n).finally(() => {
+      guestSubmitLockRef.current = false;
+    });
+  };
 
   const fetchData = async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
@@ -534,12 +550,8 @@ const [sessions, setSessions] = useState<Session[]>([]);
               value={nameInputValue}
               onChange={(e) => setNameInputValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && nameInputValue.trim()) {
-                  const s = nameInputSession;
-                  const n = nameInputValue.trim();
-                  setNameInputSession(null);
-                  setNameInputValue("");
-                  reserve(s, n);
+                if (e.key === "Enter") {
+                  submitGuestReservation();
                 }
                 if (e.key === "Escape") {
                   setNameInputSession(null);
@@ -574,13 +586,7 @@ const [sessions, setSessions] = useState<Session[]>([]);
               </button>
               <button
                 disabled={!nameInputValue.trim()}
-                onClick={() => {
-                  const s = nameInputSession;
-                  const n = nameInputValue.trim();
-                  setNameInputSession(null);
-                  setNameInputValue("");
-                  reserve(s, n);
-                }}
+                onClick={submitGuestReservation}
                 style={{
                   backgroundColor: nameInputValue.trim() ? "#4caf50" : "#aaa",
                   color: "white",

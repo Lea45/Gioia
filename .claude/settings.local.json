@@ -23,7 +23,8 @@
       "Bash(firebase hosting:sites:list)",
       "Bash(Get-ChildItem -Path \"c:\\\\LEMATECH\\\\Gioia\" -Recurse -Filter \"*.json\" -ErrorAction SilentlyContinue)",
       "Bash(Select-Object -ExpandProperty FullName)",
-      "Bash(Get-ChildItem -Path \"c:\\\\LEMATECH\\\\Gioia\\\\src\" -Recurse -Filter \"*.ts\" -o \"*.tsx\")"
+      "Bash(Get-ChildItem -Path \"c:\\\\LEMATECH\\\\Gioia\\\\src\" -Recurse -Filter \"*.ts\" -o \"*.tsx\")",
+      "Bash(npx tsc *)"
     ]
   }
 }

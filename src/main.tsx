@@ -3,6 +3,15 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
+// Self-heal: ako je referenca na build fajl zastarjela (obrisan nakon novog deploya),
+// napravi jedan hard reload umjesto da stranica ostane slomljena (spriječi petlju sessionStorage flagom)
+window.addEventListener('vite:preloadError', () => {
+  if (!sessionStorage.getItem('gioia-reload-after-preload-error')) {
+    sessionStorage.setItem('gioia-reload-after-preload-error', '1');
+    window.location.reload();
+  }
+});
+
 // Auto-reload kad se nova verzija aplikacije aktivira
 if ('serviceWorker' in navigator) {
   let refreshing = false;
