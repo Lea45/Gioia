@@ -24,7 +24,9 @@
       "Bash(Get-ChildItem -Path \"c:\\\\LEMATECH\\\\Gioia\" -Recurse -Filter \"*.json\" -ErrorAction SilentlyContinue)",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(Get-ChildItem -Path \"c:\\\\LEMATECH\\\\Gioia\\\\src\" -Recurse -Filter \"*.ts\" -o \"*.tsx\")",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(firebase login:list)",
+      "Bash(firebase projects:list)"
     ]
   }
 }

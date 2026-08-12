@@ -14,6 +14,8 @@ import { cancelReservation } from "./reservationUtils";
 
 import { FaCheckCircle, FaClock, FaTimesCircle, FaFolderOpen } from "react-icons/fa";
 
+const ADMIN_PHONES = ["20181804", "385995324490"];
+
 type Booking = {
   id: string;
   sessionId: string;
@@ -125,6 +127,8 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
         const poruka =
           result.reason === "TOO_LATE_TO_CANCEL"
             ? "⛔ Prekasno za otkazivanje. Termin počinje za manje od 3 sata."
+            : result.reason === "TOO_LATE_MORNING_CUTOFF"
+            ? "⛔ Jutarnje termine moguće je otkazati samo do 22h dan prije termina."
             : "⛔ Otkazivanje nije uspjelo. Pokušajte ponovno.";
         setInfoModalMessage(poruka);
         setShowInfoModal(true);
@@ -195,10 +199,19 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
               now.toDateString() === bookingDateTime.toDateString();
             const isPast = bookingDateTime.getTime() < now.getTime();
 
+            const startMinutesOfDay = hours * 60 + minutes;
+            const isMorningSession = startMinutesOfDay >= 6 * 60 && startMinutesOfDay <= 11 * 60;
+            const isAdminPhone = ADMIN_PHONES.includes(phone ?? "");
+
             let canCancel = true;
 
             if (isPast) {
               canCancel = false;
+            } else if (isMorningSession && !isAdminPhone) {
+              const cancelDeadline = new Date(dateISO);
+              cancelDeadline.setDate(cancelDeadline.getDate() - 1);
+              cancelDeadline.setHours(22, 0, 0, 0);
+              canCancel = now.getTime() <= cancelDeadline.getTime();
             } else if (isToday) {
               const timeDiffHours =
                 (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
@@ -211,7 +224,7 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
                   <span>{booking.date}</span>
                   <span>{booking.time}</span>
                 </div>
-                {["20181804", "385995324490"].includes(phone ?? "") && booking.name && (
+                {ADMIN_PHONES.includes(phone ?? "") && booking.name && (
                   <div style={{ fontSize: "14px", color: "#555", marginBottom: "4px", paddingLeft: "2px" }}>
                     👤 {booking.name}
                   </div>
@@ -308,7 +321,7 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
                     <span>{booking.date}</span>
                     <span>{booking.time}</span>
                   </div>
-                  {["20181804", "385995324490"].includes(phone ?? "") && booking.name && (
+                  {ADMIN_PHONES.includes(phone ?? "") && booking.name && (
                     <div style={{ fontSize: "14px", color: "#555", marginBottom: "4px", paddingLeft: "2px" }}>
                       👤 {booking.name}
                     </div>

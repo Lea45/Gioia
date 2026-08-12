@@ -11,6 +11,8 @@ import {
   limit,
 } from "firebase/firestore";
 
+const ADMIN_PHONES = ["20181804", "385995324490"];
+
 export type CancelResult = {
   ok: boolean;
   refunded: boolean;
@@ -59,7 +61,24 @@ export async function cancelReservation(
     const [sessionHours, sessionMinutes] = startTime.split(":").map(Number);
     const sessionDateTime = new Date(y, m - 1, d, sessionHours, sessionMinutes, 0, 0);
     const now = new Date();
-    if ((sessionDateTime.getTime() - now.getTime()) / (1000 * 60 * 60) < 3) {
+
+    const startMinutesOfDay = sessionHours * 60 + sessionMinutes;
+    const isMorningSession = startMinutesOfDay >= 6 * 60 && startMinutesOfDay <= 11 * 60;
+    const isAdminPhone = ADMIN_PHONES.includes(resData.phone);
+
+    if (isMorningSession && !isAdminPhone) {
+      // Jutarnji termini (6-11h): otkazivanje samo do 22h dan prije, da promaknuti
+      // s liste čekanja ne saznaju za rezervaciju usred noći nego preko dana.
+      const cancelDeadline = new Date(y, m - 1, d - 1, 22, 0, 0, 0);
+      if (now.getTime() > cancelDeadline.getTime()) {
+        return {
+          ok: false,
+          refunded: false,
+          reason: "TOO_LATE_MORNING_CUTOFF",
+          promotedPhone: null,
+        };
+      }
+    } else if ((sessionDateTime.getTime() - now.getTime()) / (1000 * 60 * 60) < 3) {
       return {
         ok: false,
         refunded: false,
