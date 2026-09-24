@@ -10,12 +10,17 @@ import {
   doc,
   query,
   orderBy,
+  runTransaction,
   where,
 } from "firebase/firestore";
 import "./UserManagement.css";
 import { normalizePhone } from "./utils/normalizePhone";
 import { cancelReservation } from "./reservationUtils";
 import { sendWhatsAppMessage } from "./ScheduleCards";
+import {
+  appendReservationHistory,
+  type ReservationEventType,
+} from "./reservationHistory";
 
 // Koristi Firebase Function za slanje admin obavijesti (API ključ je siguran na serveru)
 const ADMIN_FUNCTION_URL = "/api/sendAdminNotification";
@@ -49,10 +54,181 @@ const sendWithRetry = async (phone: string, message: string, maxAttempts = 3): P
   return false;
 };
 
+type ReservationActivity = {
+  id: string;
+  reservationId: string;
+  type: ReservationEventType;
+  date: string;
+  time: string;
+  createdAt: Date | null;
+  amount?: number;
+  previousVisits?: number;
+  newVisits?: number;
+  reason?: string;
+  source?: string;
+};
+
+type UserReservation = {
+  id: string;
+  phone?: string;
+  name?: string;
+  sessionId?: string;
+  status?: string;
+  date?: string;
+  time?: string;
+  createdAt?: unknown;
+  notified?: boolean;
+  visitDeducted?: boolean;
+  visitDeductedAt?: unknown;
+  cancelledAt?: unknown;
+  refunded?: boolean;
+  refundReason?: string;
+  refundedAt?: unknown;
+  history?: unknown;
+};
+
+const reservationEventTypes: ReservationEventType[] = [
+  "rezervacija",
+  "cekanje",
+  "promaknuto",
+  "otkazivanje",
+  "povrat_dolaska",
+  "admin_dolazak",
+];
+
+const isReservationEventType = (value: unknown): value is ReservationEventType =>
+  reservationEventTypes.includes(value as ReservationEventType);
+
+const toDate = (value: unknown): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "object" && "toDate" in value) {
+    const toDateMethod = value.toDate;
+    if (typeof toDateMethod === "function") {
+      const converted = toDateMethod.call(value);
+      return converted instanceof Date && !Number.isNaN(converted.getTime())
+        ? converted
+        : null;
+    }
+  }
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const activityLabel: Record<ReservationEventType, string> = {
+  rezervacija: "Rezervirano",
+  cekanje: "Stavljen na listu čekanja",
+  promaknuto: "Promaknut s liste čekanja",
+  otkazivanje: "Rezervacija otkazana",
+  povrat_dolaska: "Vraćen dolazak",
+  admin_dolazak: "Admin promijenio dolaske",
+};
+
+const formatTimestamp = (value: unknown) => {
+  const date = toDate(value);
+  return date
+    ? date.toLocaleString("hr-HR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Nije zabilježeno";
+};
+
+const reservationStatusLabel = (status?: string) => {
+  if (status === "rezervirano") return "Rezervirano";
+  if (status === "cekanje") return "Lista čekanja";
+  if (status === "otkazano") return "Otkazano";
+  return status || "Nije zabilježeno";
+};
+
+const defaultActivityAmount = (type: ReservationEventType) => {
+  if (type === "rezervacija" || type === "cekanje") return -1;
+  if (type === "povrat_dolaska") return 1;
+  return undefined;
+};
+
+const refundReasonLabel = (reason?: string) => {
+  if (reason === "admin_waitlist_expired") {
+    return "Admin vratio dolazak jer je termin na listi čekanja prošao";
+  }
+  if (reason === "waitlist_expired") {
+    return "Termin na listi čekanja je prošao";
+  }
+  if (reason === "session_deleted") {
+    return "Termin je obrisan iz rasporeda";
+  }
+  if (reason === "visit_was_deducted") {
+    return "Rezervacija je otkazana nakon oduzimanja dolaska";
+  }
+  if (reason === "not_deducted") {
+    return "Dolazak nije bio prethodno oduzet";
+  }
+  return reason || "Nije zabilježeno";
+};
+
+const refundSourceLabel = (source?: string) => {
+  if (source === "admin_return_visits_button") {
+    return "Admin gumb \"Vrati dolaske\"";
+  }
+  return source || "Nije zabilježeno";
+};
+
+const ReservationDatabaseFields = ({
+  reservation,
+}: {
+  reservation: UserReservation;
+}) => (
+  <div className="reservation-record-fields">
+    <span>Status u bazi</span>
+    <strong>{reservation.status || "Nije zabilježeno"}</strong>
+    <span>Rezervacija kreirana</span>
+    <span>{formatTimestamp(reservation.createdAt)}</span>
+    <span>Dolazak oduzet</span>
+    <span>
+      {reservation.visitDeducted === undefined
+        ? "Nije zabilježeno"
+        : reservation.visitDeducted
+        ? "DA"
+        : "NE"}
+    </span>
+    <span>Vrijeme oduzimanja</span>
+    <span>{formatTimestamp(reservation.visitDeductedAt)}</span>
+    <span>Dolazak vraćen</span>
+    <span>
+      {reservation.refunded === undefined
+        ? "Nije zabilježeno"
+        : reservation.refunded
+        ? "DA"
+        : "NE"}
+    </span>
+    <span>Vrijeme povrata</span>
+    <span>{formatTimestamp(reservation.refundedAt)}</span>
+    <span>Vrijeme otkazivanja</span>
+    <span>{formatTimestamp(reservation.cancelledAt)}</span>
+    <span>Razlog povrata</span>
+    <span>{refundReasonLabel(reservation.refundReason)}</span>
+    <span>Obavijest poslana</span>
+    <span>
+      {reservation.notified === undefined
+        ? "Nije zabilježeno"
+        : reservation.notified
+        ? "DA"
+        : "NE"}
+    </span>
+    <span>Session ID</span>
+    <span>{reservation.sessionId || "Nije zabilježeno"}</span>
+  </div>
+);
+
 export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
     name: string;
+    phone: string;
     pin: string | null;
   } | null>(null);
   const [successType, setSuccessType] = useState<
@@ -68,6 +244,12 @@ export default function UserManagement() {
   const [successMessage, setSuccessMessage] = useState("");
   const [showAddSuccess, setShowAddSuccess] = useState(false);
   const [newlyAddedName, setNewlyAddedName] = useState("");
+  const [showReservationHistory, setShowReservationHistory] = useState(false);
+  const [reservationHistory, setReservationHistory] = useState<ReservationActivity[]>([]);
+  const [reservationRecords, setReservationRecords] = useState<UserReservation[]>([]);
+  const [expandedActivityId, setExpandedActivityId] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
 
   interface User {
     id: string;
@@ -99,18 +281,38 @@ export default function UserManagement() {
     if (!selectedUser) return;
 
     const parsedVisits = Number(additionalVisits || "0");
-    // Dopuštamo minimalno -1
-    const totalVisits = Math.max(-1, existingVisits + parsedVisits);
+    if (!Number.isFinite(parsedVisits) || !Number.isInteger(parsedVisits)) return;
 
     const userRef = doc(db, "users", selectedUser.id);
-    await updateDoc(userRef, {
-      remainingVisits: totalVisits,
-      validUntil,
+    const { totalVisits, appliedVisits } = await runTransaction(db, async (transaction) => {
+      const userDataSnap = await transaction.get(userRef);
+      const userData = userDataSnap.data();
+      const currentVisits = Number(userData?.remainingVisits ?? existingVisits ?? 0);
+      const newTotalVisits = Math.max(-1, currentVisits + parsedVisits);
+      const actualChange = newTotalVisits - currentVisits;
+
+      transaction.update(userRef, {
+        remainingVisits: newTotalVisits,
+        validUntil,
+        visitHistory: appendReservationHistory(
+          userData?.visitHistory,
+          "admin_dolazak",
+          {
+            amount: actualChange,
+            previousVisits: currentVisits,
+            newVisits: newTotalVisits,
+          }
+        ),
+      });
+
+      return { totalVisits: newTotalVisits, appliedVisits: actualChange };
     });
 
+    setExistingVisits(totalVisits);
+
     setSuccessMessage(
-      `${parsedVisits >= 0 ? "Dodali" : "Oduzeli"} ste ${Math.abs(
-        parsedVisits
+      `${appliedVisits >= 0 ? "Dodali" : "Oduzeli"} ste ${Math.abs(
+        appliedVisits
       )} dolazaka za ${selectedUser.name}...\n`
     );
 
@@ -132,6 +334,221 @@ export default function UserManagement() {
     const q = query(collection(db, "users"), orderBy("name"));
     const snapshot = await getDocs(q);
     setUsers(snapshot.docs.map(docToUser));
+  };
+
+  const openReservationHistory = async () => {
+    if (!selectedUser) return;
+
+    setHistoryLoading(true);
+    setHistoryError("");
+    setShowReservationHistory(true);
+    setExpandedActivityId(null);
+
+    try {
+      const [reservationsSnap, userSnap] = await Promise.all([
+        getDocs(
+          query(
+            collection(db, "reservations"),
+            where("phone", "==", selectedUser.phone)
+          )
+        ),
+        getDoc(doc(db, "users", selectedUser.id)),
+      ]);
+      const userData = userSnap.data();
+
+      const userReservations = reservationsSnap.docs.map((reservationDoc) => ({
+        id: reservationDoc.id,
+        ...reservationDoc.data(),
+      })) as UserReservation[];
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - 3);
+      const isRecent = (value: unknown) => {
+        const date = toDate(value);
+        return date !== null && date >= cutoff;
+      };
+      const hasRecentActivity = (reservation: UserReservation) => {
+        const historyDates = Array.isArray(reservation.history)
+          ? reservation.history.map((entry) => {
+              if (typeof entry !== "object" || entry === null) return null;
+              return toDate((entry as Record<string, unknown>).createdAt);
+            })
+          : [];
+
+        return [
+          reservation.createdAt,
+          reservation.visitDeductedAt,
+          reservation.cancelledAt,
+          reservation.refundedAt,
+          ...historyDates,
+        ].some(isRecent);
+      };
+      const recentReservations = userReservations.filter(hasRecentActivity);
+
+      setReservationRecords(
+        [...recentReservations].sort(
+          (a, b) =>
+            (toDate(b.createdAt)?.getTime() ?? 0) -
+            (toDate(a.createdAt)?.getTime() ?? 0)
+        )
+      );
+
+      const documentActivities: ReservationActivity[] = recentReservations.flatMap(
+        (reservation) => {
+          if (!Array.isArray(reservation.history)) return [];
+
+          return reservation.history
+            .map((entry, index): ReservationActivity | null => {
+              if (typeof entry !== "object" || entry === null) return null;
+              const historyEntry = entry as Record<string, unknown>;
+              if (!isReservationEventType(historyEntry.type)) return null;
+
+              return {
+                id: `${reservation.id}-history-${index}`,
+                reservationId: reservation.id,
+                type: historyEntry.type,
+                date: reservation.date ?? "",
+                time: reservation.time ?? "",
+                createdAt: toDate(historyEntry.createdAt),
+                amount:
+                  typeof historyEntry.amount === "number"
+                    ? historyEntry.amount
+                    : defaultActivityAmount(historyEntry.type),
+                previousVisits:
+                  typeof historyEntry.previousVisits === "number"
+                    ? historyEntry.previousVisits
+                    : undefined,
+                newVisits:
+                  typeof historyEntry.newVisits === "number"
+                    ? historyEntry.newVisits
+                    : undefined,
+                reason:
+                  typeof historyEntry.reason === "string"
+                    ? historyEntry.reason
+                    : undefined,
+                source:
+                  typeof historyEntry.source === "string"
+                    ? historyEntry.source
+                    : undefined,
+              };
+            })
+            .filter(
+              (activity): activity is ReservationActivity => activity !== null
+            );
+        }
+      );
+
+      const adminActivities: ReservationActivity[] = Array.isArray(userData?.visitHistory)
+        ? userData.visitHistory
+            .map((entry: unknown, index: number): ReservationActivity | null => {
+              if (typeof entry !== "object" || entry === null) return null;
+              const historyEntry = entry as Record<string, unknown>;
+              if (historyEntry.type !== "admin_dolazak") return null;
+
+              return {
+                id: `admin-history-${index}`,
+                reservationId: `admin-${index}`,
+                type: "admin_dolazak" as const,
+                date: "",
+                time: "",
+                createdAt: toDate(historyEntry.createdAt),
+                amount:
+                  typeof historyEntry.amount === "number"
+                    ? historyEntry.amount
+                    : undefined,
+                previousVisits:
+                  typeof historyEntry.previousVisits === "number"
+                    ? historyEntry.previousVisits
+                    : undefined,
+                newVisits:
+                  typeof historyEntry.newVisits === "number"
+                    ? historyEntry.newVisits
+                    : undefined,
+              };
+            })
+            .filter(
+              (activity): activity is ReservationActivity => activity !== null
+            )
+        : [];
+
+      // Za stare rezervacije, koje još nemaju audit događaje, izgradi najbolji
+      // mogući pregled iz postojećih polja rezervacije.
+      const reservationActivities = documentActivities;
+      const recordedTypes = new Set(
+        reservationActivities.map(
+          (activity) => `${activity.reservationId}:${activity.type}`
+        )
+      );
+      const legacyActivities: ReservationActivity[] = [];
+
+      recentReservations.forEach((reservation) => {
+        const baseType: ReservationEventType =
+          reservation.status === "cekanje" ? "cekanje" : "rezervacija";
+        const baseKey = `${reservation.id}:${baseType}`;
+
+        if (!recordedTypes.has(baseKey)) {
+          legacyActivities.push({
+            id: `legacy-${baseKey}`,
+            reservationId: reservation.id,
+            type: baseType,
+            date: reservation.date ?? "",
+            time: reservation.time ?? "",
+            createdAt: toDate(reservation.createdAt),
+            amount: defaultActivityAmount(baseType),
+          });
+        }
+
+        if (
+          reservation.status === "otkazano" &&
+          !recordedTypes.has(`${reservation.id}:otkazivanje`)
+        ) {
+          legacyActivities.push({
+            id: `legacy-${reservation.id}-otkazivanje`,
+            reservationId: reservation.id,
+            type: "otkazivanje",
+            date: reservation.date ?? "",
+            time: reservation.time ?? "",
+            createdAt: toDate(reservation.cancelledAt),
+          });
+        }
+
+        if (
+          reservation.refunded === true &&
+          !recordedTypes.has(`${reservation.id}:povrat_dolaska`)
+        ) {
+          legacyActivities.push({
+            id: `legacy-${reservation.id}-povrat_dolaska`,
+            reservationId: reservation.id,
+            type: "povrat_dolaska",
+            date: reservation.date ?? "",
+            time: reservation.time ?? "",
+            createdAt: toDate(reservation.refundedAt) ?? toDate(reservation.cancelledAt),
+            amount: 1,
+          });
+        }
+      });
+
+      const allRecordedActivities = [...documentActivities, ...adminActivities];
+      const recentActivities = [...allRecordedActivities, ...legacyActivities].filter(
+        (activity) =>
+          activity.createdAt !== null &&
+          activity.createdAt >= cutoff
+      );
+
+      setReservationHistory(
+        recentActivities.sort((a, b) => {
+          const aTime = a.createdAt?.getTime() ?? 0;
+          const bTime = b.createdAt?.getTime() ?? 0;
+          return bTime - aTime;
+        })
+      );
+    } catch (error) {
+      console.error("Greška pri dohvaćanju povijesti rezervacija:", error);
+      setHistoryError("Povijest rezervacija trenutno nije moguće učitati.");
+      setReservationHistory([]);
+      setReservationRecords([]);
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
   const handleAddUser = async () => {
@@ -290,7 +707,7 @@ export default function UserManagement() {
                     const userSnap = await getDoc(userRef);
                     const data = userSnap.data();
 
-                    setSelectedUser({ id: user.id, name: user.name, pin: data?.pin ?? null });
+                    setSelectedUser({ id: user.id, name: user.name, phone: user.phone, pin: data?.pin ?? null });
                     setAdditionalVisits("");
                     setValidUntil(data?.validUntil || "");
                     setExistingVisits(data?.remainingVisits ?? 0);
@@ -362,6 +779,14 @@ export default function UserManagement() {
       {selectedUser && (
         <div className="modal-overlay">
           <div className="modal details-modal">
+            <button
+              className="details-modal-close"
+              onClick={() => setSelectedUser(null)}
+              aria-label="Zatvori detalje korisnika"
+              title="Zatvori"
+            >
+              ×
+            </button>
             <h3>{selectedUser.name}</h3>
 
             <div className="details-info-section">
@@ -380,6 +805,13 @@ export default function UserManagement() {
                 <span className="details-info-value">{selectedUser.pin ? "Postavljeno" : "Nije postavljeno"}</span>
               </div>
             </div>
+
+            <button
+              className="reservation-history-button"
+              onClick={openReservationHistory}
+            >
+              Rezervacije
+            </button>
 
             <div className="details-edit-section">
               <label>Dodaj dolaske:</label>
@@ -401,6 +833,232 @@ export default function UserManagement() {
             <div className="modal-buttons">
               <button onClick={() => setShowConfirm(true)}>Dodaj</button>
               <button onClick={() => setSelectedUser(null)}>Odustani</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReservationHistory && selectedUser && (
+        <div className="modal-overlay reservation-history-overlay">
+          <div className="modal details-modal reservation-history-modal">
+            <button
+              className="reservation-history-close"
+              onClick={() => setShowReservationHistory(false)}
+              aria-label="Zatvori povijest rezervacija"
+              title="Zatvori"
+            >
+              ×
+            </button>
+            <h3>Rezervacije: {selectedUser.name}</h3>
+            <p className="reservation-history-period">Prikaz aktivnosti iz zadnja 3 mjeseca</p>
+
+            {historyLoading && <p className="reservation-history-empty">Učitavanje...</p>}
+            {!historyLoading && historyError && (
+              <p className="reservation-history-empty">{historyError}</p>
+            )}
+            {!historyLoading &&
+              !historyError &&
+              reservationRecords.length === 0 &&
+              reservationHistory.length === 0 && (
+              <p className="reservation-history-empty">Nema zabilježenih aktivnosti.</p>
+            )}
+            {!historyLoading && !historyError && reservationRecords.length > 0 && (
+              <div
+                className={`reservation-records ${
+                  reservationHistory.length > 0 ? "reservation-records-collapsed" : ""
+                }`}
+              >
+                {reservationRecords.map((reservation) => (
+                  <div key={reservation.id} className="reservation-record">
+                    <div className="reservation-record-header">
+                      <div>
+                        <strong>
+                          {reservation.date || "Nepoznat datum"} {reservation.time || ""}
+                        </strong>
+                        <small>ID: {reservation.id}</small>
+                      </div>
+                      <span className={`reservation-status ${reservation.status || "unknown"}`}>
+                        {reservationStatusLabel(reservation.status)}
+                      </span>
+                    </div>
+
+                    <div className="reservation-record-fields">
+                      <span>Status u bazi</span>
+                      <strong>{reservation.status || "Nije zabilježeno"}</strong>
+                      <span>Rezervacija kreirana</span>
+                      <span>{formatTimestamp(reservation.createdAt)}</span>
+                      <span>Dolazak oduzet</span>
+                      <span>
+                        {reservation.visitDeducted === undefined
+                          ? "Nije zabilježeno"
+                          : reservation.visitDeducted
+                          ? "DA"
+                          : "NE"}
+                      </span>
+                      <span>Vrijeme oduzimanja</span>
+                      <span>{formatTimestamp(reservation.visitDeductedAt)}</span>
+                      <span>Dolazak vraćen</span>
+                      <span>
+                        {reservation.refunded === undefined
+                          ? "Nije zabilježeno"
+                          : reservation.refunded
+                          ? "DA"
+                          : "NE"}
+                      </span>
+                      <span>Vrijeme povrata</span>
+                      <span>{formatTimestamp(reservation.refundedAt)}</span>
+                      <span>Vrijeme otkazivanja</span>
+                      <span>{formatTimestamp(reservation.cancelledAt)}</span>
+                      <span>Razlog povrata</span>
+                      <span>{reservation.refundReason || "Nije zabilježeno"}</span>
+                      <span>Obavijest poslana</span>
+                      <span>
+                        {reservation.notified === undefined
+                          ? "Nije zabilježeno"
+                          : reservation.notified
+                          ? "DA"
+                          : "NE"}
+                      </span>
+                      <span>Session ID</span>
+                      <span>{reservation.sessionId || "Nije zabilježeno"}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!historyLoading && !historyError && reservationHistory.length > 0 && (
+              <div className="reservation-history-list">
+                {reservationHistory.map((activity) => {
+                  const reservation = reservationRecords.find(
+                    (record) => record.id === activity.reservationId
+                  );
+                  const isExpanded = expandedActivityId === activity.id;
+
+                  return (
+                  <div
+                    key={activity.id}
+                    className={`reservation-history-item ${isExpanded ? "expanded" : ""}`}
+                    onClick={() =>
+                      setExpandedActivityId(isExpanded ? null : activity.id)
+                    }
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setExpandedActivityId(isExpanded ? null : activity.id);
+                      }
+                    }}
+                  >
+                    <div className={`reservation-history-dot ${activity.type}`} />
+                    <div className="reservation-history-content">
+                      <strong>
+                        {activity.type === "admin_dolazak"
+                          ? `Admin ${
+                              activity.amount === undefined
+                                ? "promijenio"
+                                : activity.amount >= 0
+                                ? "dodao"
+                                : "oduzeo"
+                            } dolaske`
+                          : activityLabel[activity.type]}
+                        {activity.amount !== undefined
+                          ? ` (${activity.amount > 0 ? "+" : ""}${activity.amount})`
+                          : ""}
+                      </strong>
+                      <span>
+                        {activity.type === "admin_dolazak"
+                          ? "Promjena dolazaka"
+                          : `${activity.date} ${activity.time}`}
+                      </span>
+                      <small>
+                        {activity.createdAt
+                          ? activity.createdAt.toLocaleString("hr-HR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "Vrijeme nije zabilježeno"}
+                      </small>
+                    </div>
+                    <span className="reservation-history-toggle">
+                      {isExpanded ? "−" : "+"}
+                    </span>
+                    {isExpanded && reservation && (
+                      <div
+                        className="reservation-history-database"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <div className="reservation-record">
+                          <div className="reservation-record-header">
+                            <div>
+                              <strong>
+                                {reservation.date || "Nepoznat datum"}{" "}
+                                {reservation.time || ""}
+                              </strong>
+                              <small>ID: {reservation.id}</small>
+                            </div>
+                            <span
+                              className={`reservation-status ${
+                                reservation.status || "unknown"
+                              }`}
+                            >
+                              {reservationStatusLabel(reservation.status)}
+                            </span>
+                          </div>
+                          <ReservationDatabaseFields reservation={reservation} />
+                          {activity.type === "povrat_dolaska" && (
+                            <div className="reservation-record-fields">
+                              <span>Ovaj povrat</span>
+                              <strong>(+1)</strong>
+                              <span>Razlog ovog povrata</span>
+                              <span>
+                                {refundReasonLabel(
+                                  activity.reason || reservation.refundReason
+                                )}
+                              </span>
+                              <span>Način povrata</span>
+                              <span>{refundSourceLabel(activity.source)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {isExpanded && !reservation && activity.type === "admin_dolazak" && (
+                      <div
+                        className="reservation-history-database"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <div className="reservation-record">
+                          <div className="reservation-record-fields">
+                            <span>Promjena dolazaka</span>
+                            <strong>
+                              {activity.amount !== undefined
+                                ? `(${activity.amount > 0 ? "+" : ""}${activity.amount})`
+                                : "Nije zabilježeno"}
+                            </strong>
+                            <span>Prethodno stanje</span>
+                            <span>
+                              {activity.previousVisits ?? "Nije zabilježeno"}
+                            </span>
+                            <span>Novo stanje</span>
+                            <span>{activity.newVisits ?? "Nije zabilježeno"}</span>
+                            <span>Vrijeme promjene</span>
+                            <span>{formatTimestamp(activity.createdAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+                })}
+              </div>
+            )}
+
+            <div className="modal-buttons">
+              <button onClick={() => setShowReservationHistory(false)}>Zatvori</button>
             </div>
           </div>
         </div>

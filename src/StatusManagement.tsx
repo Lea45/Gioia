@@ -3,6 +3,7 @@ import { db } from "./firebase";
 import "./StatusManagement.css";
 import { FaSyncAlt, FaUndoAlt } from "react-icons/fa";
 import spinner from "./gears-spinner.svg";
+import { appendReservationHistory } from "./reservationHistory";
 
 import {
   collection,
@@ -11,6 +12,7 @@ import {
   getDocs,
   increment,
   query,
+  serverTimestamp,
   updateDoc,
   where,
   writeBatch,
@@ -25,6 +27,7 @@ type Reservation = {
   time: string;
   status: "rezervirano" | "cekanje";
   refunded: boolean;
+  history?: unknown;
 };
 
 type Session = {
@@ -75,6 +78,7 @@ export default function StatusManagement() {
       time: doc.data().time,
       status: doc.data().status,
       refunded: doc.data().refunded ?? false,
+      history: doc.data().history,
     }));
     setReservations(reservationList);
   };
@@ -154,7 +158,15 @@ export default function StatusManagement() {
         try {
           const batch = writeBatch(db);
           batch.update(userDocRef, { remainingVisits: increment(1) });
-          batch.update(resRef, { refunded: true });
+          batch.update(resRef, {
+            refunded: true,
+            refundedAt: serverTimestamp(),
+            refundReason: "admin_waitlist_expired",
+            history: appendReservationHistory(res.history, "povrat_dolaska", {
+              reason: "admin_waitlist_expired",
+              source: "admin_return_visits_button",
+            }),
+          });
           await batch.commit();
           refundedCount++;
         } catch (err) {

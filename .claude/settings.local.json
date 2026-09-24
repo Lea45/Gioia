@@ -26,7 +26,11 @@
       "Bash(Get-ChildItem -Path \"c:\\\\LEMATECH\\\\Gioia\\\\src\" -Recurse -Filter \"*.ts\" -o \"*.tsx\")",
       "Bash(npx tsc *)",
       "Bash(firebase login:list)",
-      "Bash(firebase projects:list)"
+      "Bash(firebase projects:list)",
+      "Bash(npx firebase *)",
+      "Bash(git check-ignore *)",
+      "Bash(node --env-file=.env _tmp_add_saturday.mjs)",
+      "Bash(node --env-file=.env _tmp_update_saturday.mjs)"
     ]
   }
 }

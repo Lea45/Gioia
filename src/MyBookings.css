@@ -226,3 +226,15 @@
   border-radius: 8px;
   padding: 4px 8px;
 }
+
+.my-bookings .status-tag.past-cancelled {
+  color: #a33d38;
+  background-color: #f7e1df;
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.past-booking-refund {
+  color: #537044;
+  font-weight: 600;
+}

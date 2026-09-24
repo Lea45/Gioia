@@ -405,7 +405,29 @@
 
 /* Detalji modal poboljšanja */
 .details-modal {
+  position: relative;
   text-align: left;
+}
+
+.details-modal-close {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.8rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #848b79;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.details-modal-close:hover {
+  background: #d6cfbc;
+  color: #333;
 }
 
 .details-modal h3 {
@@ -461,4 +483,264 @@
 
 .details-edit-section label:first-child {
   margin-top: 0;
+}
+
+.reservation-history-button {
+  width: 100%;
+  margin-bottom: 1rem;
+  padding: 0.7rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #848b79;
+  color: #ece5d1;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.reservation-history-button:hover {
+  background-color: #6b8e23;
+  transform: scale(1.02);
+}
+
+.reservation-history-overlay {
+  z-index: 1100;
+}
+
+.reservation-history-modal {
+  position: relative;
+  width: min(520px, calc(100% - 1rem));
+  max-width: 520px;
+  max-height: 85vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.reservation-history-close {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.8rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #848b79;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.reservation-history-close:hover {
+  background: #d6cfbc;
+  color: #333;
+}
+
+.reservation-history-period {
+  margin: -0.6rem 0 1rem;
+  color: #777;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.reservation-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  max-height: 52vh;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  padding-right: 0.2rem;
+}
+
+.reservation-records {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.reservation-records-collapsed {
+  display: none;
+}
+
+.reservation-record {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.8rem;
+  background: #f5f0e3;
+  border: 1px solid #d6cfbc;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.reservation-record-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid #d6cfbc;
+}
+
+.reservation-record-header div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.reservation-record-header small {
+  color: #777;
+  font-size: 0.7rem;
+  word-break: break-all;
+}
+
+.reservation-status {
+  flex-shrink: 0;
+  padding: 0.25rem 0.45rem;
+  border-radius: 5px;
+  background: #848b79;
+  color: #fff;
+  font-size: 0.75rem;
+}
+
+.reservation-status.cekanje {
+  background: #d69e2e;
+}
+
+.reservation-status.otkazano {
+  background: #b44b45;
+}
+
+.reservation-record-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 0.35rem 0.7rem;
+  padding-top: 0.7rem;
+  font-size: 0.78rem;
+}
+
+.reservation-record-fields span:nth-child(odd) {
+  color: #666;
+}
+
+.reservation-record-fields span:nth-child(even),
+.reservation-record-fields strong {
+  color: #333;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.reservation-history-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.8rem;
+  background: #f5f0e3;
+  border: 1px solid #d6cfbc;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+  position: relative;
+}
+
+.reservation-history-item:hover,
+.reservation-history-item.expanded {
+  background: #ebe4d3;
+  border-color: #848b79;
+}
+
+.reservation-history-toggle {
+  margin-left: auto;
+  color: #848b79;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.reservation-history-database {
+  flex-basis: 100%;
+  width: 100%;
+  min-width: 0;
+  margin-top: 0.4rem;
+  cursor: default;
+}
+
+.reservation-history-dot {
+  flex: 0 0 11px;
+  width: 11px;
+  height: 11px;
+  margin-top: 0.3rem;
+  border-radius: 50%;
+  background-color: #848b79;
+}
+
+.reservation-history-dot.cekanje {
+  background-color: #d69e2e;
+}
+
+.reservation-history-dot.promaknuto,
+.reservation-history-dot.povrat_dolaska {
+  background-color: #6b8e23;
+}
+
+.reservation-history-dot.otkazivanje {
+  background-color: #b44b45;
+}
+
+.reservation-history-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.reservation-history-content strong {
+  color: #333;
+}
+
+.reservation-history-content span,
+.reservation-history-content small,
+.reservation-history-empty {
+  color: #666;
+}
+
+.reservation-history-content small {
+  font-size: 0.78rem;
+}
+
+.reservation-history-empty {
+  padding: 1rem 0;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .reservation-history-modal {
+    padding: 1.25rem;
+  }
+
+  .reservation-record-header {
+    flex-wrap: wrap;
+  }
+
+  .reservation-record-fields {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+
+  .reservation-record-fields span:nth-child(even),
+  .reservation-record-fields strong {
+    margin-bottom: 0.4rem;
+  }
+
+  .reservation-history-item {
+    padding: 0.65rem;
+  }
+
+  .reservation-history-content {
+    max-width: calc(100% - 2.5rem);
+  }
 }

@@ -24,6 +24,7 @@ type Booking = {
   date: string;
   time: string;
   status: "rezervirano" | "cekanje" | "otkazano";
+  refunded?: boolean;
 };
 
 type MyBookingsProps = {
@@ -57,6 +58,8 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
       })) as Booking[];
 
       const now = new Date();
+      const threeMonthsAgo = new Date(now);
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
       const futureBookings = fetched.filter((b) => {
         if (b.status === "otkazano") return false;
@@ -70,14 +73,16 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
       });
 
       const past = fetched.filter((b) => {
-        if (b.status !== "rezervirano") return false;
         const [d, m, y] = b.date.split(".");
         const dateISO = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
         const rawTime = b.time.split(/[-–]/)[0].trim();
         const [hours, minutes] = rawTime.split(":").map(Number);
         const date = new Date(dateISO);
         date.setHours(hours, minutes, 0, 0);
-        return date.getTime() < now.getTime();
+        return (
+          date.getTime() < now.getTime() &&
+          date.getTime() >= threeMonthsAgo.getTime()
+        );
       });
       const sortedPast = past.sort((a, b) => {
         const [dA, mA, yA] = a.date.split(".");
@@ -327,10 +332,27 @@ const MyBookings = ({ onChanged }: MyBookingsProps) => {
                     </div>
                   )}
                   <div className="booking-status">
-                    <span className="status-tag past-reserved">
-                      <FaCheckCircle style={{ marginRight: "6px" }} />
-                      Prisustvovali
-                    </span>
+                    {booking.status === "otkazano" ? (
+                      <span className="status-tag past-cancelled">
+                        <FaTimesCircle style={{ marginRight: "6px" }} />
+                        Otkazano
+                      </span>
+                    ) : booking.status === "cekanje" ? (
+                      <span className="status-tag past-waiting">
+                        <FaClock style={{ marginRight: "6px" }} />
+                        Ostali na listi čekanja
+                      </span>
+                    ) : (
+                      <span className="status-tag past-reserved">
+                        <FaCheckCircle style={{ marginRight: "6px" }} />
+                        Prisustvovali
+                      </span>
+                    )}
+                    {booking.refunded && (
+                      <small className="past-booking-refund">
+                        Dolazak vraćen
+                      </small>
+                    )}
                   </div>
                 </div>
               ))}

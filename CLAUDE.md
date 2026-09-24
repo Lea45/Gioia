@@ -13,7 +13,7 @@ Hostano na Firebase Hosting. PWA s VitePWA pluginom.
 
 ## Firestore kolekcije
 - **users** — `{ phone, name, pin, remainingVisits, validUntil, active }`
-- **reservations** — `{ phone, name, sessionId, date, time, status, createdAt, notified, refunded, visitDeducted, visitDeductedAt, cancelledAt, refundReason, refundedAt }`
+- **reservations** — `{ phone, name, sessionId, date, time, status, createdAt, notified, refunded, visitDeducted, visitDeductedAt, cancelledAt, refundReason, refundedAt, history }`; `history` sadrži audit događaje rezervacije
 - **sessions** — `{ date, time, maxSlots, bookedSlots, active }` + `sessions/meta` (label)
 - **draftSchedule** — isti format kao sessions (admin editing)
 - **defaultSchedule** — template (dan umjesto datuma)

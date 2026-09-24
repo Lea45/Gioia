@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   limit,
 } from "firebase/firestore";
+import { appendReservationHistory } from "./reservationHistory";
 
 const ADMIN_PHONES = ["20181804", "385995324490"];
 
@@ -198,9 +199,14 @@ export async function cancelReservation(
       cancelledAt: serverTimestamp(),
       refunded,
       refundReason,
+      history: appendReservationHistory(resTxData?.history, "otkazivanje"),
     };
     if (refunded) {
       cancelUpdate.refundedAt = serverTimestamp();
+      cancelUpdate.history = appendReservationHistory(
+        cancelUpdate.history,
+        "povrat_dolaska"
+      );
     }
     t.update(reservationRef, cancelUpdate);
 
@@ -214,7 +220,11 @@ export async function cancelReservation(
 
         // Promakni prvog s waitliste
         if (nextRef && promotedPhone) {
-          t.update(nextRef, { status: "rezervirano" });
+          const nextData = nextSnap?.data();
+          t.update(nextRef, {
+            status: "rezervirano",
+            history: appendReservationHistory(nextData?.history, "promaknuto"),
+          });
           newBooked += 1;
         }
       }

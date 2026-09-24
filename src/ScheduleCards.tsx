@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import "./ScheduleCards.css";
 import ConfirmPopup from "./ConfirmPopup";
+import { appendReservationHistory } from "./reservationHistory";
 
 import {
   FaClock,
@@ -113,9 +114,13 @@ const [sessions, setSessions] = useState<Session[]>([]);
   const fetchData = async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
 
-    const sessionsSnap = await getDocs(collection(db, "sessions"));
-    const reservationsSnap = await getDocs(collection(db, "reservations"));
-    const metaDoc = await getDoc(doc(db, "sessions", "meta"));
+    const [sessionsSnap, reservationsSnap, metaDoc, notesSnap] =
+      await Promise.all([
+        getDocs(collection(db, "sessions")),
+        getDocs(collection(db, "reservations")),
+        getDoc(doc(db, "sessions", "meta")),
+        getDocs(collection(db, "sessionsNotes")),
+      ]);
 
     const fetchedSessions = sessionsSnap.docs.map((doc) => ({
       id: doc.id,
@@ -123,7 +128,6 @@ const [sessions, setSessions] = useState<Session[]>([]);
     })) as Session[];
     const visibleSessions = fetchedSessions.filter((session) => session.date);
 
-    const notesSnap = await getDocs(collection(db, "sessionsNotes"));
     const notes: Record<string, string> = {};
     notesSnap.forEach((doc) => {
       if (doc.data().text) notes[doc.id] = doc.data().text;
@@ -379,6 +383,10 @@ const [sessions, setSessions] = useState<Session[]>([]);
             refunded: false,
             visitDeducted: !!userDocRef,
             visitDeductedAt: userDocRef ? serverTimestamp() : null,
+            history: appendReservationHistory(
+              [],
+              status === "cekanje" ? "cekanje" : "rezervacija"
+            ),
           });
 
           // Inkrementiraj bookedSlots samo za potvrđena mjesta, ne za čekanje

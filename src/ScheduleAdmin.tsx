@@ -19,6 +19,7 @@ import {
 import spinner from "./gears-spinner.svg";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { appendReservationHistory } from "./reservationHistory";
 import {
   FaCalendarAlt,
   FaEdit,
@@ -184,11 +185,19 @@ export default function ScheduleAdmin() {
         const resData = resDoc.data();
         const visitDeducted = resData.visitDeducted !== false;
 
+        const cancellationHistory = appendReservationHistory(
+          resData.history,
+          "otkazivanje"
+        );
+
         batch.update(resDoc.ref, {
           status: "otkazano",
           cancelledAt: serverTimestamp(),
           refunded: visitDeducted,
           refundReason: "session_deleted",
+          history: visitDeducted
+            ? appendReservationHistory(cancellationHistory, "povrat_dolaska")
+            : cancellationHistory,
           ...(visitDeducted ? { refundedAt: serverTimestamp() } : {}),
         });
 
@@ -229,7 +238,12 @@ export default function ScheduleAdmin() {
   };
 
   const disableDay = async (date: string) => {
-    const source = view === "draft" ? "draftSchedule" : "sessions";
+    const source =
+      view === "template"
+        ? "defaultSchedule"
+        : view === "draft"
+        ? "draftSchedule"
+        : "sessions";
     const snapshot = await getDocs(collection(db, source));
     const sessionsForDay = snapshot.docs.filter((d) => d.data().date === date);
     await Promise.all(sessionsForDay.map((d) => updateDoc(d.ref, { active: false })));
@@ -237,7 +251,12 @@ export default function ScheduleAdmin() {
   };
 
   const enableDay = async (date: string) => {
-    const source = view === "draft" ? "draftSchedule" : "sessions";
+    const source =
+      view === "template"
+        ? "defaultSchedule"
+        : view === "draft"
+        ? "draftSchedule"
+        : "sessions";
     const snapshot = await getDocs(collection(db, source));
     const sessionsForDay = snapshot.docs.filter((d) => d.data().date === date);
     await Promise.all(sessionsForDay.map((d) => updateDoc(d.ref, { active: true })));
@@ -751,11 +770,15 @@ export default function ScheduleAdmin() {
         <div className="modal-overlay">
           <div className="modal">
             <p>
-              Sakriti sve termine za dan{" "}
-              <strong>{formatDay(confirmDisableDay)}</strong>?
+              {view === "template" ? "Izbrisati sve termine za dan" : "Sakriti sve termine za dan"}{" "}
+              <strong>
+                {view === "template" ? confirmDisableDay : formatDay(confirmDisableDay)}
+              </strong>
+              ?
               <br />
               <span style={{ fontSize: "0.85rem", color: "#666" }}>
-                Termini neće biti obrisani — možeš ih vratiti gumbom "Vrati dan".
+                Termini neće biti obrisani — možeš ih vratiti gumbom "Vrati{" "}
+                {view === "template" ? confirmDisableDay : "dan"}".
               </span>
             </p>
             <button
@@ -770,7 +793,7 @@ export default function ScheduleAdmin() {
                 color: "white",
               }}
             >
-              Da, sakrij
+              {view === "template" ? "Da, izbriši" : "Da, sakrij"}
             </button>
             <button onClick={() => setConfirmDisableDay(null)}>Odustani</button>
           </div>
@@ -872,7 +895,7 @@ export default function ScheduleAdmin() {
           })
           .map(([date, list]) => {
             const isDayDisabled =
-              view === "draft" &&
+              (view === "draft" || view === "template") &&
               list.length > 0 &&
               list.every((s) => s.active === false);
             return (
@@ -902,7 +925,7 @@ export default function ScheduleAdmin() {
                         style={{ marginBottom: "0.5rem" }}
                         onClick={() => enableDay(date)}
                       >
-                        ♻️ Vrati dan
+                        Vrati dan
                       </button>
                     ) : (
                       <button
@@ -922,6 +945,32 @@ export default function ScheduleAdmin() {
                       <div className="daily-note-box">
                         <em>{dailyNotes[date]}</em>
                       </div>
+                    )}
+                  </>
+                )}
+
+                {view === "template" && (
+                  <>
+                    {isDayDisabled ? (
+                      <button
+                        className="add-button-small"
+                        style={{ marginBottom: "0.5rem" }}
+                        onClick={() => enableDay(date)}
+                      >
+                        Vrati {date}
+                      </button>
+                    ) : (
+                      <button
+                        className="add-button-small"
+                        style={{
+                          marginBottom: "0.5rem",
+                          backgroundColor: "#e74c3c",
+                          color: "white",
+                        }}
+                        onClick={() => setConfirmDisableDay(date)}
+                      >
+                        Izbriši dan
+                      </button>
                     )}
                   </>
                 )}
